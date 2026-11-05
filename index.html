@@ -120,15 +120,6 @@
             display: none;
         }
 
-        /* Game Title (Gold Big) */
-        .game-title {
-            color: #FFD54F;
-            font-size: 17px;
-            font-weight: bold;
-            margin-bottom: 4px;
-            text-align: center;
-        }
-
         /* Text Line / Timer */
         .text-line {
             color: #B0BEC5;
@@ -240,6 +231,20 @@
             background: none;
         }
 
+        .flag-btn {
+            font-size: 20px;
+            cursor: pointer;
+            padding: 2px 6px;
+            border-radius: 4px;
+            background-color: #1E293B;
+            border: 1px solid transparent;
+        }
+
+        .flag-btn.active {
+            border-color: #FFD54F;
+            background-color: rgba(255,213,79,0.2);
+        }
+
         .input-group {
             margin-bottom: 16px;
         }
@@ -268,6 +273,27 @@
             font-size: 14px;
         }
 
+        .checkbox-label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #FFFFFF;
+            font-size: 13px;
+            cursor: pointer;
+            margin-bottom: 6px;
+        }
+
+        .checkbox-label input[type="checkbox"] {
+            accent-color: #FFD54F;
+            width: 16px;
+            height: 16px;
+        }
+
+        .sub-options {
+            padding-left: 24px;
+            margin-bottom: 12px;
+        }
+
         .btn-primary {
             width: 100%;
             padding: 14px;
@@ -279,6 +305,19 @@
             border-radius: 6px;
             cursor: pointer;
             margin-top: 16px;
+        }
+
+        .btn-secondary {
+            width: 100%;
+            padding: 12px;
+            background-color: #334155;
+            color: #FFFFFF;
+            font-weight: bold;
+            font-size: 13px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            margin-top: 8px;
         }
 
         /* Chat List & Input */
@@ -367,6 +406,13 @@
             color: #00E5FF;
             font-weight: bold;
         }
+
+        .tab-item-box {
+            background-color: #1E293B;
+            padding: 10px;
+            border-radius: 6px;
+            margin-bottom: 8px;
+        }
     </style>
 </head>
 <body>
@@ -390,30 +436,93 @@
     <div class="modal" id="settings-modal">
         <div class="modal-header">
             <button class="btn-back" onclick="closeModal('settings-modal')">←</button>
-            <h2 style="color: #FFF; font-size: 18px;" id="lbl-settings-title">Settings</h2>
+            <h2 style="color: #FFF; font-size: 18px; flex-grow: 1;" id="lbl-settings-title">Settings</h2>
+            <button class="flag-btn" id="btn-flag-nl" onclick="setLanguage('nl')">🇳🇱</button>
+            <button class="flag-btn active" id="btn-flag-en" onclick="setLanguage('en')">🇬🇧</button>
         </div>
         <div class="modal-body">
+            <!-- Username -->
             <div class="input-group">
                 <label id="lbl-username">Highlight Username</label>
                 <p id="lbl-username-desc">Enter your username to highlight your position in the lists.</p>
                 <input type="text" id="cfg-username" class="input-control" placeholder="Enter PINemHi username">
             </div>
 
+            <!-- Accent Color -->
             <div class="input-group">
                 <label id="lbl-color">Accent Color</label>
+                <p id="lbl-color-desc">Choose the color used to highlight your row.</p>
                 <select id="cfg-color" class="input-control">
-                    <option value="#FFEB3B">Yellow (Default)</option>
-                    <option value="#00E676">Green</option>
-                    <option value="#FF9800">Orange / Gold</option>
-                    <option value="#00E5FF">Cyan / Blue</option>
-                    <option value="#FF4081">Pink</option>
+                    <option value="#FFEB3B" id="opt-color-yellow">Yellow (Default)</option>
+                    <option value="#00E676" id="opt-color-green">Green</option>
+                    <option value="#FF9800" id="opt-color-orange">Orange / Gold</option>
+                    <option value="#00E5FF" id="opt-color-cyan">Cyan / Blue</option>
+                    <option value="#FF4081" id="opt-color-pink">Pink</option>
                 </select>
             </div>
 
-            <button class="btn-primary" onclick="saveSettings()">Save</button>
+            <!-- Tabs & Order -->
+            <div class="input-group">
+                <label id="lbl-tabs">Tabs &amp; Order</label>
+                <p id="lbl-tabs-desc">Toggle tabs on/off or change order.</p>
+                <div id="cfg-tabs-list"></div>
+            </div>
+
+            <!-- Notifications -->
+            <div class="input-group">
+                <label id="lbl-notify">Notifications</label>
+                <label class="checkbox-label">
+                    <input type="checkbox" id="cfg-notify-rank">
+                    <span id="lbl-notify-rank">Notification on rank loss (when someone passes you)</span>
+                </label>
+
+                <label class="checkbox-label">
+                    <input type="checkbox" id="cfg-notify-unposted">
+                    <span id="lbl-notify-unposted">Send notification if you haven't posted a score yet</span>
+                </label>
+
+                <div class="sub-options">
+                    <p id="lbl-unposted-days">Send notification beforehand:</p>
+                    <select id="cfg-unposted-days" class="input-control" style="margin-bottom: 8px;">
+                        <option value="6" id="opt-days-6">6 days before end</option>
+                        <option value="3" id="opt-days-3">3 days before end</option>
+                        <option value="1" id="opt-days-1">1 day before end</option>
+                    </select>
+
+                    <p id="lbl-unposted-tabs">Enable notifications for:</p>
+                    <label class="checkbox-label"><input type="checkbox" id="cfg-unposted-sec1" checked> <span>WEEKLY COMPETITION</span></label>
+                    <label class="checkbox-label"><input type="checkbox" id="cfg-unposted-sec2" checked> <span>5 MIN MODE</span></label>
+                    <label class="checkbox-label"><input type="checkbox" id="cfg-unposted-sec3" checked> <span>CLOSEST TO THE PIN</span></label>
+                </div>
+            </div>
+
+            <!-- Timer Warning -->
+            <div class="input-group">
+                <label id="lbl-timer">Timer Warning</label>
+                <p id="lbl-timer-desc">Show a warning (⚠️) when a competition is ending soon.</p>
+                <select id="cfg-timer-warning" class="input-control">
+                    <option value="0" id="opt-timer-0">Off</option>
+                    <option value="15">15 minutes before end</option>
+                    <option value="30">30 minutes before end</option>
+                    <option value="60">1 hour before end</option>
+                    <option value="120">2 hours before end</option>
+                    <option value="360">6 hours before end</option>
+                    <option value="720">12 hours before end</option>
+                    <option value="1440">24 hours before end</option>
+                </select>
+            </div>
+
+            <!-- Clear Cache -->
+            <div class="input-group">
+                <label id="lbl-cache">Memory &amp; Cache</label>
+                <p id="lbl-cache-desc">Clear saved data if loading problems occur.</p>
+                <button class="btn-secondary" onclick="clearCache()" id="btn-cache">Clear cache</button>
+            </div>
+
+            <button class="btn-primary" onclick="saveSettings()" id="btn-save">Save</button>
 
             <div class="footer-link" onclick="openModal('info-modal')">
-                <u>V1.4</u><br>Created by Jochen Bilderbeek<br>Data from Pinemhi.com
+                <u>V1.4</u><br><span id="lbl-credit">Created by Jochen Bilderbeek<br>Data from Pinemhi.com</span>
             </div>
         </div>
     </div>
@@ -441,7 +550,7 @@
     <div class="modal" id="info-modal">
         <div class="modal-header">
             <button class="btn-back" onclick="closeModal('info-modal')">←</button>
-            <h2 style="color: #FFF; font-size: 18px;">Info & Version History</h2>
+            <h2 style="color: #FFF; font-size: 18px;">Info &amp; Version History</h2>
         </div>
         <div class="modal-body" style="white-space: pre-wrap; font-size: 13px; color: #E0E0E0; line-height: 1.5;">
 PINEMHI App and Widget for Android & iOS Web
@@ -472,38 +581,153 @@ Contact: jbilderbeek@hotmail.com
     <script>
         const FIREBASE_URL = "https://pinemhi-chat-default-rtdb.europe-west1.firebasedatabase.app/messages.json";
 
-        const SECTIONS = [
-            { id: 0, title: "HOME", url: "https://www.pinemhi.com/home.php" },
-            { id: 1, title: "WEEKLY COMPETITION", url: "https://www.pinemhi.com/week_challenge.php" },
-            { id: 2, title: "5 MIN MODE", url: "https://www.pinemhi.com/week_challenge_5min.php" },
-            { id: 3, title: "CLOSEST TO THE PIN", url: "https://www.pinemhi.com/week_challenge_golf.php" }
+        const DEFAULT_SECTIONS = [
+            { id: 0, title: "HOME", url: "https://www.pinemhi.com/home.php", enabled: true },
+            { id: 1, title: "WEEKLY COMPETITION", url: "https://www.pinemhi.com/week_challenge.php", enabled: true },
+            { id: 2, title: "5 MIN MODE", url: "https://www.pinemhi.com/week_challenge_5min.php", enabled: true },
+            { id: 3, title: "CLOSEST TO THE PIN", url: "https://www.pinemhi.com/week_challenge_golf.php", enabled: true }
         ];
 
         let config = {
+            lang: localStorage.getItem("lang") || "en",
             username: localStorage.getItem("username") || "",
             color: localStorage.getItem("color") || "#FFEB3B",
-            lastReadChat: parseInt(localStorage.getItem("lastReadChat") || "0")
+            notifyRank: localStorage.getItem("notifyRank") !== "false",
+            notifyUnposted: localStorage.getItem("notifyUnposted") === "true",
+            unpostedDays: localStorage.getItem("unpostedDays") || "3",
+            timerWarning: localStorage.getItem("timerWarning") || "0",
+            lastReadChat: parseInt(localStorage.getItem("lastReadChat") || "0"),
+            sections: JSON.parse(localStorage.getItem("sections") || JSON.stringify(DEFAULT_SECTIONS))
         };
 
         let sectionData = {};
         let chatPollTimer = null;
 
+        const STRINGS = {
+            en: {
+                settingsTitle: "Settings",
+                username: "Highlight Username",
+                usernameDesc: "Enter your username to highlight your position in the lists.",
+                color: "Accent Color",
+                colorDesc: "Choose the color used to highlight your row.",
+                tabs: "Tabs & Order",
+                tabsDesc: "Toggle tabs on/off.",
+                notify: "Notifications",
+                notifyRank: "Notification on rank loss (when someone passes you)",
+                notifyUnposted: "Send notification if you haven't posted a score yet",
+                unpostedDays: "Send notification beforehand:",
+                unpostedTabs: "Enable notifications for:",
+                days6: "6 days before end",
+                days3: "3 days before end",
+                days1: "1 day before end",
+                timer: "Timer Warning",
+                timerDesc: "Show a warning (⚠️) when a competition is ending soon.",
+                timer0: "Off",
+                cache: "Memory & Cache",
+                cacheDesc: "Clear saved data if loading problems occur.",
+                btnCache: "Clear cache",
+                btnSave: "Save",
+                credit: "Created by Jochen Bilderbeek<br>Data from Pinemhi.com"
+            },
+            nl: {
+                settingsTitle: "Instellingen",
+                username: "Accentueren gebruikersnaam",
+                usernameDesc: "Vul je gebruikersnaam in om jouw positie in de lijsten op te lichten.",
+                color: "Accentkleur",
+                colorDesc = "Kies de kleur waarmee jouw rij geaccentueerd wordt.",
+                tabs: "Tabs & Volgorde",
+                tabsDesc: "Schakel tabs in/uit.",
+                notify: "Meldingen",
+                notifyRank: "Melding bij positieverlies (als iemand je inhaalt)",
+                notifyUnposted: "Melding sturen als je nog geen score hebt gepost",
+                unpostedDays: "Melding sturen vooraf:",
+                unpostedTabs: "Meldingen inschakelen voor:",
+                days6: "6 dagen voor afloop",
+                days3: "3 dagen voor afloop",
+                days1: "1 dag voor afloop",
+                timer: "Timer waarschuwing",
+                timerDesc: "Laat een waarschuwing (⚠️) zien als een challenge bijna afloopt.",
+                timer0: "Uit",
+                cache: "Geheugen & Cache",
+                cacheDesc: "Wis opgeslagen data als er problemen zijn met laden.",
+                btnCache: "Cache wissen",
+                btnSave: "Opslaan",
+                credit: "Gemaakt door Jochen Bilderbeek<br>Data van Pinemhi.com"
+            }
+        };
+
         function init() {
+            setLanguage(config.lang);
             document.getElementById("cfg-username").value = config.username;
             document.getElementById("cfg-color").value = config.color;
+            document.getElementById("cfg-notify-rank").checked = config.notifyRank;
+            document.getElementById("cfg-notify-unposted").checked = config.notifyUnposted;
+            document.getElementById("cfg-unposted-days").value = config.unpostedDays;
+            document.getElementById("cfg-timer-warning").value = config.timerWarning;
+
+            renderTabSettings();
             refreshData();
+        }
+
+        function setLanguage(lang) {
+            config.lang = lang;
+            localStorage.setItem("lang", lang);
+
+            document.getElementById("btn-flag-nl").classList.toggle("active", lang === "nl");
+            document.getElementById("btn-flag-en").classList.toggle("active", lang === "en");
+
+            let s = STRINGS[lang] || STRINGS.en;
+            document.getElementById("lbl-settings-title").innerText = s.settingsTitle;
+            document.getElementById("lbl-username").innerText = s.username;
+            document.getElementById("lbl-username-desc").innerText = s.usernameDesc;
+            document.getElementById("lbl-color").innerText = s.color;
+            document.getElementById("lbl-color-desc").innerText = s.colorDesc;
+            document.getElementById("lbl-tabs").innerText = s.tabs;
+            document.getElementById("lbl-tabs-desc").innerText = s.tabsDesc;
+            document.getElementById("lbl-notify").innerText = s.notify;
+            document.getElementById("lbl-notify-rank").innerText = s.notifyRank;
+            document.getElementById("lbl-notify-unposted").innerText = s.notifyUnposted;
+            document.getElementById("lbl-unposted-days").innerText = s.unpostedDays;
+            document.getElementById("lbl-unposted-tabs").innerText = s.unpostedTabs;
+            document.getElementById("opt-days-6").innerText = s.days6;
+            document.getElementById("opt-days-3").innerText = s.days3;
+            document.getElementById("opt-days-1").innerText = s.days1;
+            document.getElementById("lbl-timer").innerText = s.timer;
+            document.getElementById("lbl-timer-desc").innerText = s.timerDesc;
+            document.getElementById("opt-timer-0").innerText = s.timer0;
+            document.getElementById("lbl-cache").innerText = s.cache;
+            document.getElementById("lbl-cache-desc").innerText = s.cacheDesc;
+            document.getElementById("btn-cache").innerText = s.btnCache;
+            document.getElementById("btn-save").innerText = s.btnSave;
+            document.getElementById("lbl-credit").innerHTML = s.credit;
+        }
+
+        function renderTabSettings() {
+            let list = document.getElementById("cfg-tabs-list");
+            list.innerHTML = "";
+            config.sections.forEach((sec, idx) => {
+                let box = document.createElement("div");
+                box.className = "tab-item-box";
+                box.innerHTML = `
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="tab-chk-${sec.id}" ${sec.enabled ? 'checked' : ''}>
+                        <span>${sec.title}</span>
+                    </label>
+                `;
+                list.appendChild(box);
+            });
         }
 
         function openModal(id) {
             document.getElementById(id).classList.add("active");
             if (id === "chat-modal") {
                 if (!config.username) {
-                    alert("Please set your username in Settings first!");
+                    alert(config.lang === 'nl' ? "Vul eerst je gebruikersnaam in bij Instellingen!" : "Please set your username in Settings first!");
                     closeModal("chat-modal");
                     openModal("settings-modal");
                     return;
                 }
-                document.getElementById("chat-user-status").innerText = "Logged in as: " + config.username;
+                document.getElementById("chat-user-status").innerText = (config.lang === 'nl' ? "Ingelogd als: " : "Logged in as: ") + config.username;
                 localStorage.setItem("lastReadChat", Date.now().toString());
                 document.getElementById("chat-trigger-btn").classList.remove("unread");
                 loadChatMessages();
@@ -521,10 +745,32 @@ Contact: jbilderbeek@hotmail.com
         function saveSettings() {
             config.username = document.getElementById("cfg-username").value.trim();
             config.color = document.getElementById("cfg-color").value;
+            config.notifyRank = document.getElementById("cfg-notify-rank").checked;
+            config.notifyUnposted = document.getElementById("cfg-notify-unposted").checked;
+            config.unpostedDays = document.getElementById("cfg-unposted-days").value;
+            config.timerWarning = document.getElementById("cfg-timer-warning").value;
+
+            config.sections.forEach(sec => {
+                let chk = document.getElementById(`tab-chk-${sec.id}`);
+                if (chk) sec.enabled = chk.checked;
+            });
+
             localStorage.setItem("username", config.username);
             localStorage.setItem("color", config.color);
+            localStorage.setItem("notifyRank", config.notifyRank);
+            localStorage.setItem("notifyUnposted", config.notifyUnposted);
+            localStorage.setItem("unpostedDays", config.unpostedDays);
+            localStorage.setItem("timerWarning", config.timerWarning);
+            localStorage.setItem("sections", JSON.stringify(config.sections));
+
             closeModal("settings-modal");
             renderSections();
+        }
+
+        function clearCache() {
+            localStorage.clear();
+            alert(config.lang === 'nl' ? "Cache gewist!" : "Cache cleared!");
+            location.reload();
         }
 
         async function fetchPageWithFallback(targetUrl) {
@@ -549,10 +795,11 @@ Contact: jbilderbeek@hotmail.com
         }
 
         async function refreshData() {
-            document.getElementById("updated-time").innerText = "Refreshing...";
+            document.getElementById("updated-time").innerText = config.lang === 'nl' ? "Verversen..." : "Refreshing...";
             let anySuccess = false;
 
-            for (let sec of SECTIONS) {
+            for (let sec of config.sections) {
+                if (!sec.enabled) continue;
                 let html = await fetchPageWithFallback(sec.url);
                 if (html) {
                     parsePage(sec.id, html);
@@ -645,7 +892,8 @@ Contact: jbilderbeek@hotmail.com
             let container = document.getElementById("sections-container");
             container.innerHTML = "";
 
-            SECTIONS.forEach(sec => {
+            config.sections.forEach(sec => {
+                if (!sec.enabled) return;
                 let data = sectionData[sec.id] || { rows: [] };
                 let isHome = sec.id === 0;
 
