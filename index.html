@@ -806,7 +806,7 @@ Contact: jbilderbeek@hotmail.com
         async function fetchSinglePage(targetUrl) {
             const proxies = [
                 url => `https://corsproxy.io/?${encodeURIComponent(url)}`,
-                url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+                url => `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`,
                 url => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`
             ];
 
@@ -819,9 +819,14 @@ Contact: jbilderbeek@hotmail.com
                     clearTimeout(timeoutId);
 
                     if (resp.ok) {
-                        let text = await resp.text();
-                        if (text && text.length > 200) {
-                            return text;
+                        let data = await resp.json().catch(() => null);
+                        let html = (data && data.contents) ? data.contents : null;
+                        if (!html) {
+                            let respText = await fetch(proxyFn(targetUrl));
+                            if (respText.ok) html = await respText.text();
+                        }
+                        if (typeof html === 'string' && html.length > 200) {
+                            return html;
                         }
                     }
                 } catch(e) {}
@@ -860,7 +865,30 @@ Contact: jbilderbeek@hotmail.com
             return new Intl.NumberFormat('de-DE').format(n);
         }
 
+        function shortDate(dateStr) {
+            if (!dateStr) return "";
+            let m = dateStr.match(/(\d{4})[-/](\d{2})[-/](\d{2})|(\d{2})[-/](\d{2})[-/](\d{4})/);
+            if (m) {
+                if (m[1]) {
+                    return `${m[3]}-${m[2]}`;
+                } else {
+                    return `${m[4]}-${m[5]}`;
+                }
+            }
+            return dateStr.split(" ")[0] || dateStr;
+        }
+
+        function findColIndex(cols, keywords) {
+            if (!cols || cols.length === 0) return -1;
+            for (let kw of keywords) {
+                let idx = cols.findIndex(c => c && c.includes(kw));
+                if (idx >= 0) return idx;
+            }
+            return -1;
+        }
+
         function parsePage(secId, html) {
+            let isHome = (secId === 0);
             let game = "";
             let timerText = "";
             let pinLine = "";
@@ -885,25 +913,61 @@ Contact: jbilderbeek@hotmail.com
 
             // Extract table rows via Regex
             let trMatches = html.match(/<tr[^>]*>[\s\S]*?<\/tr>/gi) || [];
+            let headerCols = [];
+
             for (let trHtml of trMatches) {
                 let tdMatches = trHtml.match(/<(td|th)[^>]*>([\s\S]*?)<\/(td|th)>/gi) || [];
                 let cells = tdMatches.map(td => td.replace(/<[^>]+>/g, '').trim());
 
                 if (cells.length >= 3) {
                     let firstCell = cells[0].toLowerCase();
-                    if (firstCell.includes("pos") || firstCell.includes("week") || firstCell.includes("winner")) {
+
+                    // Check for table header row
+                    if (firstCell.includes("pos") || firstCell.includes("submitted") || firstCell.includes("score") || firstCell.includes("week") || firstCell.includes("winner")) {
+                        if (!firstCell.includes("winner")) {
+                            headerCols = cells.map(c => c.toLowerCase());
+                        }
                         continue;
                     }
+
                     if (firstCell.includes("no scores") || firstCell.includes("geen scores")) {
                         break;
                     }
-                    rows.push({
-                        pos: cells[0],
-                        score: cells[1],
-                        game: cells[2] || "",
-                        name: cells[3] || cells[2] || "",
-                        date: cells[cells.length - 1] || ""
-                    });
+
+                    let idxScore = findColIndex(headerCols, ["score", "distance", "afstand", "punten", "result", "submitted"]);
+                    let idxName = findColIndex(headerCols, ["player", "name", "naam", "speler", "user", "nick"]);
+                    let idxGame = findColIndex(headerCols, ["game name", "game", "spel", "kast"]);
+                    let idxDate = findColIndex(headerCols, ["date", "datum", "tijd", "time"]);
+
+                    if (isHome) {
+                        // HOME: SCORE (c2), GAME (c3), NAME (c4), DATE (c5)
+                        let valScore = (idxScore >= 0 && cells[idxScore]) ? cells[idxScore] : cells[0];
+                        let valGame = (idxGame >= 0 && cells[idxGame]) ? cells[idxGame] : (cells[2] || "");
+                        let valName = (idxName >= 0 && cells[idxName]) ? cells[idxName] : (cells[1] || "");
+                        let valDate = (idxDate >= 0 && cells[idxDate]) ? cells[idxDate] : (cells[cells.length - 1] || "");
+
+                        rows.push({
+                            pos: "",
+                            score: valScore,
+                            game: valGame,
+                            name: valName,
+                            date: shortDate(valDate)
+                        });
+                    } else {
+                        // Challenge tabs: POS (c1), SCORE (c2), NAME (c4), DATE (c5). GAME (c3="") REMOVED!
+                        let valPos = cells[0];
+                        let valScore = (idxScore >= 0 && cells[idxScore]) ? cells[idxScore] : cells[1];
+                        let valName = (idxName >= 0 && cells[idxName]) ? cells[idxName] : (cells[3] || cells[2] || "");
+                        let valDate = (idxDate >= 0 && cells[idxDate]) ? cells[idxDate] : (cells[cells.length - 1] || "");
+
+                        rows.push({
+                            pos: valPos,
+                            score: valScore,
+                            game: "",
+                            name: valName,
+                            date: shortDate(valDate)
+                        });
+                    }
                 }
             }
 
