@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>PINemHi</title>
+    <!-- iOS PWA Meta Tags -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="PINemHi">
+    <meta name="theme-color" content="#121824">
+
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background-color: #121824;
+            color: #FFFFFF;
+            padding-bottom: 20px;
+            user-select: none;
+        }
+
+        /* App Header Bar */
+        .header {
+            background-color: #1E293B;
+            display: flex;
+            align-items: center;
+            padding: 12px 16px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        }
+
+        .header-title {
+            font-size: 18px;
+            font-weight: bold;
+            color: #FFFFFF;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-grow: 1;
+        }
+
+        .header-updated {
+            font-size: 11px;
+            color: #90A4AE;
+            margin-right: 12px;
+        }
+
+        .header-btn {
+            font-size: 20px;
+            background: none;
+            border: none;
+            color: #FFFFFF;
+            cursor: pointer;
+            padding: 4px 8px;
+        }
+
+        /* Section Cards */
+        .container {
+            padding: 12px;
+        }
+
+        .section-card {
+            background-color: #1E293B;
+            border-radius: 8px;
+            margin-bottom: 12px;
+            overflow: hidden;
+        }
+
+        .section-header {
+            display: flex;
+            align-items: center;
+            padding: 10px 14px;
+            background-color: #27354A;
+            cursor: pointer;
+        }
+
+        .section-title {
+            font-size: 14px;
+            font-weight: bold;
+            color: #FFFFFF;
+            flex-grow: 1;
+        }
+
+        .btn-chat-trigger {
+            font-size: 14px;
+            color: #FFFFFF;
+            font-weight: bold;
+            margin-right: 12px;
+            cursor: pointer;
+        }
+
+        .btn-chat-trigger.unread {
+            color: #FFD54F;
+        }
+
+        .section-arrow {
+            font-size: 14px;
+            color: #FFFFFF;
+        }
+
+        .section-content {
+            padding: 10px;
+        }
+
+        .section-content.collapsed {
+            display: none;
+        }
+
+        /* Game Title (Gold Big) */
+        .game-title {
+            color: #FFD54F;
+            font-size: 17px;
+            font-weight: bold;
+            margin-bottom: 4px;
+            text-align: center;
+        }
+
+        /* Text Line / Timer */
+        .text-line {
+            color: #B0BEC5;
+            font-size: 12px;
+            margin-bottom: 6px;
+            text-align: center;
+        }
+
+        .text-line.warning {
+            color: #FF5252;
+            font-weight: bold;
+            animation: pulse 1s infinite alternate;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            100% { opacity: 0.3; }
+        }
+
+        /* Leaderboard Table */
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 6px;
+        }
+
+        .table tr {
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .table td {
+            padding: 6px 4px;
+            font-size: 13px;
+        }
+
+        .col-pos {
+            width: 30px;
+            color: #FFFFFF;
+            font-size: 13px;
+        }
+
+        .col-score {
+            color: #FFD54F;
+            font-size: 14px;
+            font-weight: bold;
+        }
+
+        .col-game {
+            color: #FFFFFF;
+            font-size: 11px;
+        }
+
+        .col-name {
+            color: #E0E0E0;
+            font-size: 12.5px;
+            text-align: right;
+        }
+
+        .col-date {
+            color: #90A4AE;
+            font-size: 11px;
+            text-align: right;
+            width: 50px;
+        }
+
+        .highlight-row {
+            background-color: rgba(255, 235, 59, 0.25);
+            border-radius: 4px;
+        }
+
+        /* Modal Screens (Settings / Chat / Info) */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #121824;
+            z-index: 200;
+            overflow-y: auto;
+        }
+
+        .modal.active {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .modal-header {
+            background-color: #1E293B;
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .modal-body {
+            padding: 16px;
+            flex-grow: 1;
+            overflow-y: auto;
+        }
+
+        .btn-back {
+            font-size: 20px;
+            color: #FFD54F;
+            cursor: pointer;
+            border: none;
+            background: none;
+        }
+
+        .input-group {
+            margin-bottom: 16px;
+        }
+
+        .input-group label {
+            display: block;
+            color: #FFD54F;
+            font-size: 14px;
+            font-weight: bold;
+            margin-bottom: 4px;
+        }
+
+        .input-group p {
+            color: #90A4AE;
+            font-size: 12px;
+            margin-bottom: 8px;
+        }
+
+        .input-control {
+            width: 100%;
+            padding: 12px;
+            background-color: #1E293B;
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 6px;
+            color: #FFFFFF;
+            font-size: 14px;
+        }
+
+        .btn-primary {
+            width: 100%;
+            padding: 14px;
+            background-color: #FFD54F;
+            color: #121824;
+            font-weight: bold;
+            font-size: 15px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            margin-top: 16px;
+        }
+
+        /* Chat List & Input */
+        .chat-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            padding: 10px 0;
+        }
+
+        .chat-bubble {
+            background-color: #1E293B;
+            padding: 10px 14px;
+            border-radius: 8px;
+            max-width: 85%;
+        }
+
+        .chat-bubble.me {
+            align-self: flex-end;
+            background-color: #334155;
+        }
+
+        .chat-bubble.pinned {
+            align-self: center;
+            max-width: 100%;
+            background-color: #1E293B;
+            border: 1px solid #FFD54F;
+        }
+
+        .chat-sender {
+            font-size: 12px;
+            font-weight: bold;
+            color: #00E5FF;
+        }
+
+        .chat-bubble.me .chat-sender {
+            color: #FFD54F;
+        }
+
+        .chat-time {
+            font-size: 10px;
+            color: #90A4AE;
+            margin-left: 8px;
+        }
+
+        .chat-text {
+            font-size: 13px;
+            color: #FFFFFF;
+            margin-top: 4px;
+        }
+
+        .chat-input-bar {
+            display: flex;
+            padding: 10px;
+            background-color: #1E293B;
+            gap: 8px;
+        }
+
+        .chat-input-bar input {
+            flex-grow: 1;
+            padding: 10px;
+            background-color: #121824;
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 6px;
+            color: #FFFFFF;
+        }
+
+        .chat-input-bar button {
+            padding: 10px 16px;
+            background-color: #FFD54F;
+            color: #121824;
+            font-weight: bold;
+            border: none;
+            border-radius: 6px;
+        }
+
+        .footer-link {
+            text-align: center;
+            color: #607D8B;
+            font-size: 12px;
+            margin-top: 24px;
+            cursor: pointer;
+        }
+
+        .footer-link u {
+            color: #00E5FF;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Header -->
+    <div class="header">
+        <div class="header-title">
+            <span>PINemHi</span>
+        </div>
+        <span class="header-updated" id="updated-time"></span>
+        <button class="header-btn" onclick="refreshData()">↻</button>
+        <button class="header-btn" onclick="openModal('settings-modal')">⚙</button>
+    </div>
+
+    <!-- Container -->
+    <div class="container" id="sections-container">
+        <!-- Sections rendered by JS -->
+    </div>
+
+    <!-- Settings Modal -->
+    <div class="modal" id="settings-modal">
+        <div class="modal-header">
+            <button class="btn-back" onclick="closeModal('settings-modal')">←</button>
+            <h2 style="color: #FFF; font-size: 18px;" id="lbl-settings-title">Settings</h2>
+        </div>
+        <div class="modal-body">
+            <div class="input-group">
+                <label id="lbl-username">Highlight Username</label>
+                <p id="lbl-username-desc">Enter your username to highlight your position in the lists.</p>
+                <input type="text" id="cfg-username" class="input-control" placeholder="Enter PINemHi username">
+            </div>
+
+            <div class="input-group">
+                <label id="lbl-color">Accent Color</label>
+                <select id="cfg-color" class="input-control">
+                    <option value="#FFEB3B">Yellow (Default)</option>
+                    <option value="#00E676">Green</option>
+                    <option value="#FF9800">Orange / Gold</option>
+                    <option value="#00E5FF">Cyan / Blue</option>
+                    <option value="#FF4081">Pink</option>
+                </select>
+            </div>
+
+            <button class="btn-primary" onclick="saveSettings()">Save</button>
+
+            <div class="footer-link" onclick="openModal('info-modal')">
+                <u>V1.4</u><br>Created by Jochen Bilderbeek<br>Data from Pinemhi.com
+            </div>
+        </div>
+    </div>
+
+    <!-- Chat Modal -->
+    <div class="modal" id="chat-modal">
+        <div class="modal-header">
+            <button class="btn-back" onclick="closeModal('chat-modal')">←</button>
+            <div style="flex-grow: 1;">
+                <h2 style="color: #FFF; font-size: 16px;">PINemHi Chat 💬</h2>
+                <span style="font-size: 11px; color: #90A4AE;" id="chat-user-status"></span>
+            </div>
+            <button class="header-btn" onclick="loadChatMessages()">↻</button>
+        </div>
+        <div class="modal-body" id="chat-messages-container">
+            <div class="chat-list" id="chat-list"></div>
+        </div>
+        <div class="chat-input-bar">
+            <input type="text" id="chat-input" placeholder="Type a message...">
+            <button onclick="sendChatMessage()">➤</button>
+        </div>
+    </div>
+
+    <!-- Info Modal -->
+    <div class="modal" id="info-modal">
+        <div class="modal-header">
+            <button class="btn-back" onclick="closeModal('info-modal')">←</button>
+            <h2 style="color: #FFF; font-size: 18px;">Info & Version History</h2>
+        </div>
+        <div class="modal-body" style="white-space: pre-wrap; font-size: 13px; color: #E0E0E0; line-height: 1.5;">
+PINEMHI App and Widget for Android & iOS Web
+By Jochen Bilderbeek, The Netherlands
+
+V1.4 (November 2026)
+- Added more notification options to remind you to compete
+- Added a chat function!
+
+V1.3 (November 2026)
+- English as default
+- Changed 5 MIN to 5 Minute Mode and PIN to Closest to the pin contest
+- If no score is posted yet, that will be shown
+- Adjusted the notification texts
+- Added Info tab with version history
+
+V1.2 (November 2026)
+- Visual adjustments because of changes to the website
+- Added a button for Language option in Settings
+- Removed the Game name from the table at Weekly Competition, 5 MIN and PIN
+
+v1.1 (October 2026)
+First release.
+Contact: jbilderbeek@hotmail.com
+        </div>
+    </div>
+
+    <script>
+        const FIREBASE_URL = "https://pinemhi-chat-default-rtdb.europe-west1.firebasedatabase.app/messages.json";
+        const PROXY_URL = "https://api.allorigins.win/raw?url=";
+
+        const SECTIONS = [
+            { id: 0, title: "HOME", url: "https://www.pinemhi.com/home.php" },
+            { id: 1, title: "WEEKLY COMPETITION", url: "https://www.pinemhi.com/week_challenge.php" },
+            { id: 2, title: "5 MIN MODE", url: "https://www.pinemhi.com/week_challenge_5min.php" },
+            { id: 3, title: "CLOSEST TO THE PIN", url: "https://www.pinemhi.com/week_challenge_golf.php" }
+        ];
+
+        let config = {
+            username: localStorage.getItem("username") || "",
+            color: localStorage.getItem("color") || "#FFEB3B",
+            lastReadChat: parseInt(localStorage.getItem("lastReadChat") || "0")
+        };
+
+        let sectionData = {};
+        let chatPollTimer = null;
+
+        function init() {
+            document.getElementById("cfg-username").value = config.username;
+            document.getElementById("cfg-color").value = config.color;
+            refreshData();
+        }
+
+        function openModal(id) {
+            document.getElementById(id).classList.add("active");
+            if (id === "chat-modal") {
+                if (!config.username) {
+                    alert("Please set your username in Settings first!");
+                    closeModal("chat-modal");
+                    openModal("settings-modal");
+                    return;
+                }
+                document.getElementById("chat-user-status").innerText = "Logged in as: " + config.username;
+                localStorage.setItem("lastReadChat", Date.now().toString());
+                document.getElementById("chat-trigger-btn").classList.remove("unread");
+                loadChatMessages();
+                chatPollTimer = setInterval(loadChatMessages, 3000);
+            }
+        }
+
+        function closeModal(id) {
+            document.getElementById(id).classList.remove("active");
+            if (id === "chat-modal") {
+                clearInterval(chatPollTimer);
+            }
+        }
+
+        function saveSettings() {
+            config.username = document.getElementById("cfg-username").value.trim();
+            config.color = document.getElementById("cfg-color").value;
+            localStorage.setItem("username", config.username);
+            localStorage.setItem("color", config.color);
+            closeModal("settings-modal");
+            renderSections();
+        }
+
+        async function refreshData() {
+            document.getElementById("updated-time").innerText = "Refreshing...";
+            for (let sec of SECTIONS) {
+                try {
+                    let resp = await fetch(PROXY_URL + encodeURIComponent(sec.url));
+                    let html = await resp.text();
+                    parsePage(sec.id, html);
+                } catch(e) {}
+            }
+            document.getElementById("updated-time").innerText = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+            renderSections();
+            checkChatUnread();
+        }
+
+        function parsePage(secId, html) {
+            let doc = new DOMParser().parseFromString(html, "text/html");
+            let text = doc.body.innerText;
+
+            let game = "";
+            let timerText = "";
+            let pinLine = "";
+            let rows = [];
+
+            let lines = text.split("\n").map(l => l.trim()).filter(l => l);
+            for (let line of lines) {
+                if (line.toLowerCase().includes("pin is set")) {
+                    pinLine = line;
+                }
+                if (line.match(/\d{4}-\d{2}-\d{2}/) && !timerText) {
+                    timerText = line;
+                }
+            }
+
+            let tables = doc.querySelectorAll("table");
+            if (tables.length > 0) {
+                let trs = tables[0].querySelectorAll("tr");
+                for (let i = 1; i < trs.length; i++) {
+                    let tds = trs[i].querySelectorAll("td, th");
+                    if (tds.length >= 3) {
+                        rows.push({
+                            pos: tds[0].innerText.trim(),
+                            score: tds[1].innerText.trim(),
+                            game: tds[2] ? tds[2].innerText.trim() : "",
+                            name: tds[3] ? tds[3].innerText.trim() : (tds[2] ? tds[2].innerText.trim() : ""),
+                            date: tds[tds.length - 1].innerText.trim()
+                        });
+                    }
+                }
+            }
+
+            sectionData[secId] = { game, timerText, pinLine, rows };
+        }
+
+        function renderSections() {
+            let container = document.getElementById("sections-container");
+            container.innerHTML = "";
+
+            SECTIONS.forEach(sec => {
+                let data = sectionData[sec.id] || { rows: [] };
+                let isHome = sec.id === 0;
+
+                let card = document.createElement("div");
+                card.className = "section-card";
+
+                let chatBtn = isHome ? `<span class="btn-chat-trigger" id="chat-trigger-btn" onclick="event.stopPropagation(); openModal('chat-modal')">💬</span>` : "";
+
+                card.innerHTML = `
+                    <div class="section-header" onclick="toggleCard(${sec.id})">
+                        <span class="section-title">${sec.title}</span>
+                        ${chatBtn}
+                        <span class="section-arrow" id="arrow-${sec.id}">▼</span>
+                    </div>
+                    <div class="section-content" id="content-${sec.id}">
+                        ${data.pinLine ? `<div class="text-line">${data.pinLine}</div>` : ''}
+                        ${data.timerText ? `<div class="text-line">${data.timerText}</div>` : ''}
+                        <table class="table">
+                            ${data.rows.length === 0 ? '<tr><td colspan="5" style="text-align:center; color:#90A4AE;">No scores posted yet</td></tr>' : ''}
+                            ${data.rows.map(r => {
+                                let isMe = config.username && r.name.toLowerCase().includes(config.username.toLowerCase());
+                                return `
+                                    <tr class="${isMe ? 'highlight-row' : ''}">
+                                        <td class="col-pos">${isHome ? '' : r.pos}</td>
+                                        <td class="col-score">${r.score}</td>
+                                        ${isHome ? `<td class="col-game">${r.game}</td>` : ''}
+                                        <td class="col-name">${r.name}</td>
+                                        <td class="col-date">${r.date}</td>
+                                    </tr>
+                                `;
+                            }).join('')}
+                        </table>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function toggleCard(id) {
+            let content = document.getElementById(`content-${id}`);
+            let arrow = document.getElementById(`arrow-${id}`);
+            if (content.classList.contains("collapsed")) {
+                content.classList.remove("collapsed");
+                arrow.innerText = "▼";
+            } else {
+                content.classList.add("collapsed");
+                arrow.innerText = "▶";
+            }
+        }
+
+        async function loadChatMessages() {
+            try {
+                let resp = await fetch(FIREBASE_URL + '?orderBy="$key"&limitToLast=100');
+                let data = await resp.json();
+                let list = document.getElementById("chat-list");
+                list.innerHTML = "";
+
+                // Pinned Message
+                let pinned = document.createElement("div");
+                pinned.className = "chat-bubble pinned";
+                pinned.innerHTML = `
+                    <div class="chat-sender" style="color: #FFD54F">📌 PINemHi</div>
+                    <div class="chat-text">Welcome to the PINemHI chat! Feel free to discuss strategies or congratulate someone with a score!</div>
+                `;
+                list.appendChild(pinned);
+
+                if (data) {
+                    let keys = Object.keys(data).sort();
+                    keys.forEach(k => {
+                        let m = data[k];
+                        let isMe = config.username && m.sender.toLowerCase() === config.username.toLowerCase();
+                        let bubble = document.createElement("div");
+                        bubble.className = "chat-bubble " + (isMe ? "me" : "");
+                        bubble.innerHTML = `
+                            <div>
+                                <span class="chat-sender">${m.sender}</span>
+                                <span class="chat-time">${new Date(m.timestamp).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</span>
+                            </div>
+                            <div class="chat-text">${m.text}</div>
+                        `;
+                        list.appendChild(bubble);
+                    });
+                }
+                let container = document.getElementById("chat-messages-container");
+                container.scrollTop = container.scrollHeight;
+            } catch(e) {}
+        }
+
+        async function sendChatMessage() {
+            let input = document.getElementById("chat-input");
+            let text = input.value.trim();
+            if (!text || !config.username) return;
+
+            input.value = "";
+            try {
+                await fetch(FIREBASE_URL, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        sender: config.username,
+                        text: text,
+                        timestamp: Date.now()
+                    })
+                });
+                loadChatMessages();
+            } catch(e) {}
+        }
+
+        async function checkChatUnread() {
+            try {
+                let resp = await fetch(FIREBASE_URL + '?orderBy="$key"&limitToLast=1');
+                let data = await resp.json();
+                if (data) {
+                    let key = Object.keys(data)[0];
+                    if (data[key].timestamp > config.lastReadChat) {
+                        let btn = document.getElementById("chat-trigger-btn");
+                        if (btn) btn.classList.add("unread");
+                    }
+                }
+            } catch(e) {}
+        }
+
+        window.onload = init;
+    </script>
+</body>
+</html>
