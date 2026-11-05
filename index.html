@@ -795,27 +795,22 @@ Contact: jbilderbeek@hotmail.com
         async function fetchSinglePage(targetUrl) {
             const proxies = [
                 url => `https://corsproxy.io/?${encodeURIComponent(url)}`,
-                url => `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`,
+                url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
                 url => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`
             ];
 
             for (let proxyFn of proxies) {
                 try {
                     const controller = new AbortController();
-                    const timeoutId = setTimeout(() => controller.abort(), 2000);
+                    const timeoutId = setTimeout(() => controller.abort(), 3500);
 
                     let resp = await fetch(proxyFn(targetUrl), { signal: controller.signal });
                     clearTimeout(timeoutId);
 
                     if (resp.ok) {
-                        let data = await resp.json().catch(() => null);
-                        let html = (data && data.contents) ? data.contents : null;
-                        if (!html) {
-                            let respText = await fetch(proxyFn(targetUrl));
-                            if (respText.ok) html = await respText.text();
-                        }
-                        if (typeof html === 'string' && html.length > 200) {
-                            return html;
+                        let text = await resp.text();
+                        if (text && text.length > 200) {
+                            return text;
                         }
                     }
                 } catch(e) {}
@@ -825,14 +820,18 @@ Contact: jbilderbeek@hotmail.com
 
         async function fetchFirebaseData() {
             try {
-                let resp = await fetch(FIREBASE_DATA_URL);
+                let resp = await fetch(FIREBASE_DATA_URL + "?cacheBust=" + Date.now());
                 if (resp.ok) {
                     let data = await resp.json();
                     if (data && typeof data === 'object') {
+                        let count = 0;
                         Object.keys(data).forEach(id => {
-                            sectionData[id] = data[id];
+                            if (data[id] && data[id].rows) {
+                                sectionData[id] = data[id];
+                                count++;
+                            }
                         });
-                        return true;
+                        return count > 0;
                     }
                 }
             } catch(e) {}
@@ -862,12 +861,12 @@ Contact: jbilderbeek@hotmail.com
                 });
 
             let results = await Promise.all(promises);
-            let anySuccess = results.some(r => r === true);
+            let anyProxySuccess = results.some(r => r === true);
 
-            if (anySuccess || fbLoaded) {
+            if (anyProxySuccess || fbLoaded) {
                 document.getElementById("updated-time").innerText = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
             } else {
-                document.getElementById("updated-time").innerText = "Error loading";
+                document.getElementById("updated-time").innerText = config.lang === 'nl' ? "Tik ↻ voor herladen" : "Tap ↻ to reload";
             }
             renderSections();
             checkChatUnread();
@@ -928,6 +927,12 @@ Contact: jbilderbeek@hotmail.com
             let headerCols = [];
 
             for (let trHtml of trMatches) {
+                let lowerTr = trHtml.toLowerCase();
+                // STOP parsing if we reach "Last 5 Winners" or "Previous Week" table!
+                if (lowerTr.includes("last 5 winners") || lowerTr.includes("previous week") || lowerTr.includes("winner")) {
+                    break;
+                }
+
                 let tdMatches = trHtml.match(/<(td|th)[^>]*>([\s\S]*?)<\/(td|th)>/gi) || [];
                 let cells = tdMatches.map(td => td.replace(/<[^>]+>/g, '').trim());
 
@@ -935,10 +940,8 @@ Contact: jbilderbeek@hotmail.com
                     let firstCell = cells[0].toLowerCase();
 
                     // Check for table header row
-                    if (firstCell.includes("pos") || firstCell.includes("submitted") || firstCell.includes("score") || firstCell.includes("week") || firstCell.includes("winner")) {
-                        if (!firstCell.includes("winner")) {
-                            headerCols = cells.map(c => c.toLowerCase());
-                        }
+                    if (firstCell.includes("pos") || firstCell.includes("submitted") || firstCell.includes("score") || firstCell.includes("week")) {
+                        headerCols = cells.map(c => c.toLowerCase());
                         continue;
                     }
 
@@ -1093,7 +1096,7 @@ Contact: jbilderbeek@hotmail.com
                         list.appendChild(bubble);
                     });
                 }
-                let container = document.getElementById("chat-messages-container"); 
+                let container = document.getElementById("chat-messages-container");
                 container.scrollTop = container.scrollHeight;
             } catch(e) {}
         }
