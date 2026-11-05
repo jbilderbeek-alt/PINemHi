@@ -1,10 +1,11 @@
-PINEMHI App and Widget for Android
+PINEMHI App
 By Jochen Bilderbeek, The Netherlands
 
 
 V1.4 (November 2026)
 - Added more notification options to remind you to compete
 - Added a chat function!
+- Added webapp version for IOS (no widget)
 
 V1.3 (November 2026)
 
