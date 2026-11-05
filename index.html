@@ -5,9 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>PINemHi</title>
 
-    <!-- Base64 PNG App Icon for iOS & Web -->
-    <link rel="icon" type="image/png" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMgAAADICAYAAAC505iaAAAACXBIWXMAAAsTAAALEwEAmpwYAAAJ/0lEQVR4nO3dfZBdZX3A8e+z2dzs3mQ3IURCAgmEAMkIeSkoihIro1MHp45OHa32Scdq7SgdO2pL3/vP44wzttrO41Sndmp1xspodRypOlpAqw5IBA1GkhDeQpKX7O5mN7v3ntc/zrlLInmS3XvPPfcn2e+f5M7u3p/fOed3dveee+55zr0A">
-    <link rel="apple-touch-icon" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMgAAADICAYAAAC505iaAAAACXBIWXMAAAsTAAALEwEAmpwYAAAJ/0lEQVR4nO3dfZBdZX3A8e+z2dzs3mQ3IURCAgmEAMkIeSkoihIro1MHp45OHa32Scdq7SgdO2pL3/vP44wzttrO41Sndmp1xspodRypOlpAqw5IBA1GkhDeQpKX7O5mN7v3ntc/zrlLInmS3XvPPfcn2e+f5M7u3p/fOed3dveee+55zr0A">
+    <!-- Base64 PNG App Logo for iOS & Web -->
+    <link rel="icon" type="image/png" href="icon.png">
+    <link rel="apple-touch-icon" href="apple-touch-icon.png">
 
     <!-- iOS PWA Meta Tags -->
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -54,6 +54,13 @@
             align-items: center;
             gap: 8px;
             flex-grow: 1;
+        }
+
+        .header-logo {
+            width: 26px;
+            height: 26px;
+            border-radius: 50%;
+            object-fit: cover;
         }
 
         .header-updated {
@@ -429,7 +436,7 @@
     <!-- Header -->
     <div class="header">
         <div class="header-title">
-            <canvas id="app-logo-canvas" width="24" height="24" style="vertical-align: middle;"></canvas>
+            <img class="header-logo" src="icon.png" alt="Logo" onerror="this.onerror=null; this.src='apple-touch-icon.png';">
             <span>PINemHi</span>
         </div>
         <span class="header-updated" id="updated-time"></span>
@@ -590,6 +597,7 @@ Contact: jbilderbeek@hotmail.com
 
     <script>
         const FIREBASE_URL = "https://pinemhi-chat-default-rtdb.europe-west1.firebasedatabase.app/messages.json";
+        const FIREBASE_DATA_URL = "https://pinemhi-chat-default-rtdb.europe-west1.firebasedatabase.app/data.json";
 
         const DEFAULT_SECTIONS = [
             { id: 0, title: "HOME", url: "https://www.pinemhi.com/home.php", enabled: true },
@@ -666,26 +674,7 @@ Contact: jbilderbeek@hotmail.com
             }
         };
 
-        function drawLogo() {
-            let canvas = document.getElementById("app-logo-canvas");
-            if (!canvas) return;
-            let ctx = canvas.getContext("2d");
-            ctx.fillStyle = "#1E293B";
-            ctx.beginPath();
-            ctx.arc(12, 12, 11, 0, 2 * Math.PI);
-            ctx.fill();
-            ctx.strokeStyle = "#FFD54F";
-            ctx.lineWidth = 1.5;
-            ctx.stroke();
-            ctx.fillStyle = "#FFD54F";
-            ctx.font = "bold 9px sans-serif";
-            ctx.textAlign = "center";
-            ctx.textBaseline = "middle";
-            ctx.fillText("PIN", 12, 12.5);
-        }
-
         function init() {
-            drawLogo();
             setLanguage(config.lang);
             document.getElementById("cfg-username").value = config.username;
             document.getElementById("cfg-color").value = config.color;
@@ -813,7 +802,7 @@ Contact: jbilderbeek@hotmail.com
             for (let proxyFn of proxies) {
                 try {
                     const controller = new AbortController();
-                    const timeoutId = setTimeout(() => controller.abort(), 4000);
+                    const timeoutId = setTimeout(() => controller.abort(), 2000);
 
                     let resp = await fetch(proxyFn(targetUrl), { signal: controller.signal });
                     clearTimeout(timeoutId);
@@ -834,10 +823,33 @@ Contact: jbilderbeek@hotmail.com
             return null;
         }
 
+        async function fetchFirebaseData() {
+            try {
+                let resp = await fetch(FIREBASE_DATA_URL);
+                if (resp.ok) {
+                    let data = await resp.json();
+                    if (data && typeof data === 'object') {
+                        Object.keys(data).forEach(id => {
+                            sectionData[id] = data[id];
+                        });
+                        return true;
+                    }
+                }
+            } catch(e) {}
+            return false;
+        }
+
         async function refreshData() {
             document.getElementById("updated-time").innerText = config.lang === 'nl' ? "Verversen..." : "Refreshing...";
 
-            // Parallel fetching all active sections at once!
+            // 1. Try Firebase Instant Data
+            let fbLoaded = await fetchFirebaseData();
+            if (fbLoaded) {
+                document.getElementById("updated-time").innerText = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                renderSections();
+            }
+
+            // 2. Fetch Live Pages in Parallel
             const promises = config.sections
                 .filter(sec => sec.enabled)
                 .map(async sec => {
@@ -852,7 +864,7 @@ Contact: jbilderbeek@hotmail.com
             let results = await Promise.all(promises);
             let anySuccess = results.some(r => r === true);
 
-            if (anySuccess) {
+            if (anySuccess || fbLoaded) {
                 document.getElementById("updated-time").innerText = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
             } else {
                 document.getElementById("updated-time").innerText = "Error loading";
