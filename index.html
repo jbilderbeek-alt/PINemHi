@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>PINemHi</title>
 
-    <!-- iOS & Web App Icons -->
+    <!-- iOS & Web App PNG Icons -->
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='100' fill='%23121824'/%3E%3Ccircle cx='256' cy='256' r='180' fill='%231E293B' stroke='%23FFD54F' stroke-width='24'/%3E%3Ctext x='256' y='285' font-family='sans-serif' font-size='150' font-weight='bold' fill='%23FFD54F' text-anchor='middle'%3EPIN%3C/text%3E%3C/svg%3E">
     <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='100' fill='%23121824'/%3E%3Ccircle cx='256' cy='256' r='180' fill='%231E293B' stroke='%23FFD54F' stroke-width='24'/%3E%3Ctext x='256' y='285' font-family='sans-serif' font-size='150' font-weight='bold' fill='%23FFD54F' text-anchor='middle'%3EPIN%3C/text%3E%3C/svg%3E">
 
@@ -27,16 +27,19 @@
         body {
             background-color: #121824;
             color: #FFFFFF;
-            padding-bottom: 20px;
+            padding-bottom: 30px;
             user-select: none;
         }
 
-        /* App Header Bar */
+        /* App Header Bar - Adjusted for iOS Notch / Status Bar */
         .header {
             background-color: #1E293B;
             display: flex;
             align-items: center;
-            padding: 12px 16px;
+            padding-top: calc(12px + env(safe-area-inset-top, 0px));
+            padding-bottom: 12px;
+            padding-left: 16px;
+            padding-right: 16px;
             position: sticky;
             top: 0;
             z-index: 100;
@@ -190,7 +193,7 @@
             border-radius: 4px;
         }
 
-        /* Modal Screens (Settings / Chat / Info) */
+        /* Modal Screens - Adjusted for iOS Notch / Status Bar */
         .modal {
             display: none;
             position: fixed;
@@ -210,7 +213,10 @@
 
         .modal-header {
             background-color: #1E293B;
-            padding: 12px 16px;
+            padding-top: calc(12px + env(safe-area-inset-top, 0px));
+            padding-bottom: 12px;
+            padding-left: 16px;
+            padding-right: 16px;
             display: flex;
             align-items: center;
             gap: 12px;
@@ -219,16 +225,18 @@
 
         .modal-body {
             padding: 16px;
+            padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px));
             flex-grow: 1;
             overflow-y: auto;
         }
 
         .btn-back {
-            font-size: 20px;
+            font-size: 22px;
             color: #FFD54F;
             cursor: pointer;
             border: none;
             background: none;
+            padding: 4px 8px;
         }
 
         .flag-btn {
@@ -372,6 +380,7 @@
         .chat-input-bar {
             display: flex;
             padding: 10px;
+            padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
             background-color: #1E293B;
             gap: 8px;
         }
@@ -464,7 +473,7 @@
             <!-- Tabs & Order -->
             <div class="input-group">
                 <label id="lbl-tabs">Tabs &amp; Order</label>
-                <p id="lbl-tabs-desc">Toggle tabs on/off or change order.</p>
+                <p id="lbl-tabs-desc">Toggle tabs on/off.</p>
                 <div id="cfg-tabs-list"></div>
             </div>
 
@@ -634,7 +643,7 @@ Contact: jbilderbeek@hotmail.com
                 username: "Accentueren gebruikersnaam",
                 usernameDesc: "Vul je gebruikersnaam in om jouw positie in de lijsten op te lichten.",
                 color: "Accentkleur",
-                colorDesc = "Kies de kleur waarmee jouw rij geaccentueerd wordt.",
+                colorDesc: "Kies de kleur waarmee jouw rij geaccentueerd wordt.",
                 tabs: "Tabs & Volgorde",
                 tabsDesc: "Schakel tabs in/uit.",
                 notify: "Meldingen",
@@ -776,7 +785,7 @@ Contact: jbilderbeek@hotmail.com
         async function fetchPageWithFallback(targetUrl) {
             const proxies = [
                 url => `https://corsproxy.io/?${encodeURIComponent(url)}`,
-                url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+                url => `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`,
                 url => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`
             ];
 
@@ -784,9 +793,14 @@ Contact: jbilderbeek@hotmail.com
                 try {
                     let resp = await fetch(proxyFn(targetUrl));
                     if (resp.ok) {
-                        let text = await resp.text();
-                        if (text && text.length > 200) {
-                            return text;
+                        let data = await resp.json().catch(() => null);
+                        let html = (data && data.contents) ? data.contents : null;
+                        if (!html) {
+                            let respText = await fetch(proxyFn(targetUrl));
+                            if (respText.ok) html = await respText.text();
+                        }
+                        if (typeof html === 'string' && html.length > 200) {
+                            return html;
                         }
                     }
                 } catch(e) {}
@@ -821,66 +835,66 @@ Contact: jbilderbeek@hotmail.com
         }
 
         function parsePage(secId, html) {
-            let doc = new DOMParser().parseFromString(html, "text/html");
-            let text = doc.body.innerText;
-
             let game = "";
             let timerText = "";
             let pinLine = "";
             let rows = [];
 
-            let lines = text.split("\n").map(l => l.trim()).filter(l => l);
-            for (let line of lines) {
-                if (line.toLowerCase().includes("pin is set")) {
-                    pinLine = line;
-                }
-                if (line.match(/\d{4}-\d{2}-\d{2}/) && !timerText) {
-                    let m = line.match(/(\d{4})[-/](\d{2})[-/](\d{2})(?:\s+(\d{2}):(\d{2}))?/);
-                    if (m) {
-                        let y = m[1].slice(-2);
-                        let month = m[2];
-                        let d = m[3];
-                        let hh = m[4] || "";
-                        let mm = m[5] || "";
-                        timerText = hh ? `${d}/${month}/${y} ${hh}:${mm}` : `${d}/${month}/${y}`;
-                    }
-                }
+            // Extract PIN IS SET AT line
+            let pinMatch = html.match(/PIN\s+IS\s+SET\s+AT:?\s*([\d.]+)/i);
+            if (pinMatch) {
+                pinLine = pinMatch[0];
             }
 
-            let tables = doc.querySelectorAll("table");
-            if (tables.length > 0) {
-                let trs = tables[0].querySelectorAll("tr");
-                for (let i = 1; i < trs.length; i++) {
-                    let tds = trs[i].querySelectorAll("td, th");
-                    if (tds.length >= 3) {
-                        rows.push({
-                            pos: tds[0].innerText.trim(),
-                            score: tds[1].innerText.trim(),
-                            game: tds[2] ? tds[2].innerText.trim() : "",
-                            name: tds[3] ? tds[3].innerText.trim() : (tds[2] ? tds[2].innerText.trim() : ""),
-                            date: tds[tds.length - 1].innerText.trim()
-                        });
+            // Extract dates
+            let dateMatch = html.match(/(\d{4})[-/](\d{2})[-/](\d{2})(?:\s+(\d{2}):(\d{2}))?/);
+            if (dateMatch) {
+                let y = dateMatch[1].slice(-2);
+                let month = dateMatch[2];
+                let d = dateMatch[3];
+                let hh = dateMatch[4] || "";
+                let mm = dateMatch[5] || "";
+                timerText = hh ? `${d}/${month}/${y} ${hh}:${mm}` : `${d}/${month}/${y}`;
+            }
+
+            // Extract table rows via Regex
+            let trMatches = html.match(/<tr[^>]*>[\s\S]*?<\/tr>/gi) || [];
+            for (let trHtml of trMatches) {
+                let tdMatches = trHtml.match(/<(td|th)[^>]*>([\s\S]*?)<\/(td|th)>/gi) || [];
+                let cells = tdMatches.map(td => td.replace(/<[^>]+>/g, '').trim());
+
+                if (cells.length >= 3) {
+                    let firstCell = cells[0].toLowerCase();
+                    if (firstCell.includes("pos") || firstCell.includes("week") || firstCell.includes("winner")) {
+                        continue;
                     }
+                    if (firstCell.includes("no scores") || firstCell.includes("geen scores")) {
+                        break;
+                    }
+                    rows.push({
+                        pos: cells[0],
+                        score: cells[1],
+                        game: cells[2] || "",
+                        name: cells[3] || cells[2] || "",
+                        date: cells[cells.length - 1] || ""
+                    });
                 }
             }
 
             // Calculate "score to beat" for PIN section
-            if (secId === 3 && pinLine) {
-                let pinMatch = pinLine.match(/PIN\s+IS\s+SET\s+AT:?\s*([\d.]+)/i);
-                if (pinMatch) {
-                    let pinDigits = pinMatch[1].replace(/\D/g, "");
-                    let pinScore = parseInt(pinDigits) || 0;
-                    if (pinScore > 0) {
-                        let formattedPin = formatNumberDots(pinScore);
-                        if (rows.length > 0 && rows[0].score) {
-                            let distClean = rows[0].score.replace(/\./g, "").replace(",", ".");
-                            let distNum = parseInt(distClean) || 0;
-                            let score1 = pinScore + distNum;
-                            let scoreToBeat = score1 > 0 ? score1 : pinScore;
-                            pinLine = `Pin is set at: ${formattedPin}, score to beat: ${formatNumberDots(scoreToBeat)}`;
-                        } else {
-                            pinLine = `Pin is set at: ${formattedPin}, score to beat: ${formattedPin}`;
-                        }
+            if (secId === 3 && pinMatch) {
+                let pinDigits = pinMatch[1].replace(/\D/g, "");
+                let pinScore = parseInt(pinDigits) || 0;
+                if (pinScore > 0) {
+                    let formattedPin = formatNumberDots(pinScore);
+                    if (rows.length > 0 && rows[0].score) {
+                        let distClean = rows[0].score.replace(/\./g, "").replace(",", ".");
+                        let distNum = parseInt(distClean.replace(/[^\d-]/g, '')) || 0;
+                        let score1 = pinScore + distNum;
+                        let scoreToBeat = score1 > 0 ? score1 : pinScore;
+                        pinLine = `Pin is set at: ${formattedPin}, score to beat: ${formatNumberDots(scoreToBeat)}`;
+                    } else {
+                        pinLine = `Pin is set at: ${formattedPin}, score to beat: ${formattedPin}`;
                     }
                 }
             }
