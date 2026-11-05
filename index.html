@@ -5,9 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>PINemHi</title>
 
-    <!-- iOS & Web App PNG Icons -->
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='100' fill='%23121824'/%3E%3Ccircle cx='256' cy='256' r='180' fill='%231E293B' stroke='%23FFD54F' stroke-width='24'/%3E%3Ctext x='256' y='285' font-family='sans-serif' font-size='150' font-weight='bold' fill='%23FFD54F' text-anchor='middle'%3EPIN%3C/text%3E%3C/svg%3E">
-    <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='100' fill='%23121824'/%3E%3Ccircle cx='256' cy='256' r='180' fill='%231E293B' stroke='%23FFD54F' stroke-width='24'/%3E%3Ctext x='256' y='285' font-family='sans-serif' font-size='150' font-weight='bold' fill='%23FFD54F' text-anchor='middle'%3EPIN%3C/text%3E%3C/svg%3E">
+    <!-- Base64 PNG App Icon for iOS & Web -->
+    <link rel="icon" type="image/png" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMgAAADICAYAAAC505iaAAAACXBIWXMAAAsTAAALEwEAmpwYAAAJ/0lEQVR4nO3dfZBdZX3A8e+z2dzs3mQ3IURCAgmEAMkIeSkoihIro1MHp45OHa32Scdq7SgdO2pL3/vP44wzttrO41Sndmp1xspodRypOlpAqw5IBA1GkhDeQpKX7O5mN7v3ntc/zrlLInmS3XvPPfcn2e+f5M7u3p/fOed3dveee+55zr0A">
+    <link rel="apple-touch-icon" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMgAAADICAYAAAC505iaAAAACXBIWXMAAAsTAAALEwEAmpwYAAAJ/0lEQVR4nO3dfZBdZX3A8e+z2dzs3mQ3IURCAgmEAMkIeSkoihIro1MHp45OHa32Scdq7SgdO2pL3/vP44wzttrO41Sndmp1xspodRypOlpAqw5IBA1GkhDeQpKX7O5mN7v3ntc/zrlLInmS3XvPPfcn2e+f5M7u3p/fOed3dveee+55zr0A">
 
     <!-- iOS PWA Meta Tags -->
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -429,6 +429,7 @@
     <!-- Header -->
     <div class="header">
         <div class="header-title">
+            <canvas id="app-logo-canvas" width="24" height="24" style="vertical-align: middle;"></canvas>
             <span>PINemHi</span>
         </div>
         <span class="header-updated" id="updated-time"></span>
@@ -665,7 +666,26 @@ Contact: jbilderbeek@hotmail.com
             }
         };
 
+        function drawLogo() {
+            let canvas = document.getElementById("app-logo-canvas");
+            if (!canvas) return;
+            let ctx = canvas.getContext("2d");
+            ctx.fillStyle = "#1E293B";
+            ctx.beginPath();
+            ctx.arc(12, 12, 11, 0, 2 * Math.PI);
+            ctx.fill();
+            ctx.strokeStyle = "#FFD54F";
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+            ctx.fillStyle = "#FFD54F";
+            ctx.font = "bold 9px sans-serif";
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillText("PIN", 12, 12.5);
+        }
+
         function init() {
+            drawLogo();
             setLanguage(config.lang);
             document.getElementById("cfg-username").value = config.username;
             document.getElementById("cfg-color").value = config.color;
@@ -738,7 +758,8 @@ Contact: jbilderbeek@hotmail.com
                 }
                 document.getElementById("chat-user-status").innerText = (config.lang === 'nl' ? "Ingelogd als: " : "Logged in as: ") + config.username;
                 localStorage.setItem("lastReadChat", Date.now().toString());
-                document.getElementById("chat-trigger-btn").classList.remove("unread");
+                let btn = document.getElementById("chat-trigger-btn");
+                if (btn) btn.classList.remove("unread");
                 loadChatMessages();
                 chatPollTimer = setInterval(loadChatMessages, 3000);
             }
@@ -782,25 +803,25 @@ Contact: jbilderbeek@hotmail.com
             location.reload();
         }
 
-        async function fetchPageWithFallback(targetUrl) {
+        async function fetchSinglePage(targetUrl) {
             const proxies = [
                 url => `https://corsproxy.io/?${encodeURIComponent(url)}`,
-                url => `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`,
+                url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
                 url => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`
             ];
 
             for (let proxyFn of proxies) {
                 try {
-                    let resp = await fetch(proxyFn(targetUrl));
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 4000);
+
+                    let resp = await fetch(proxyFn(targetUrl), { signal: controller.signal });
+                    clearTimeout(timeoutId);
+
                     if (resp.ok) {
-                        let data = await resp.json().catch(() => null);
-                        let html = (data && data.contents) ? data.contents : null;
-                        if (!html) {
-                            let respText = await fetch(proxyFn(targetUrl));
-                            if (respText.ok) html = await respText.text();
-                        }
-                        if (typeof html === 'string' && html.length > 200) {
-                            return html;
+                        let text = await resp.text();
+                        if (text && text.length > 200) {
+                            return text;
                         }
                     }
                 } catch(e) {}
@@ -810,16 +831,21 @@ Contact: jbilderbeek@hotmail.com
 
         async function refreshData() {
             document.getElementById("updated-time").innerText = config.lang === 'nl' ? "Verversen..." : "Refreshing...";
-            let anySuccess = false;
 
-            for (let sec of config.sections) {
-                if (!sec.enabled) continue;
-                let html = await fetchPageWithFallback(sec.url);
-                if (html) {
-                    parsePage(sec.id, html);
-                    anySuccess = true;
-                }
-            }
+            // Parallel fetching all active sections at once!
+            const promises = config.sections
+                .filter(sec => sec.enabled)
+                .map(async sec => {
+                    let html = await fetchSinglePage(sec.url);
+                    if (html) {
+                        parsePage(sec.id, html);
+                        return true;
+                    }
+                    return false;
+                });
+
+            let results = await Promise.all(promises);
+            let anySuccess = results.some(r => r === true);
 
             if (anySuccess) {
                 document.getElementById("updated-time").innerText = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
