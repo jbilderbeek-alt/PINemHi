@@ -4,6 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>PINemHi</title>
+
+    <!-- iOS & Web App Icons -->
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='100' fill='%23121824'/%3E%3Ccircle cx='256' cy='256' r='180' fill='%231E293B' stroke='%23FFD54F' stroke-width='24'/%3E%3Ctext x='256' y='285' font-family='sans-serif' font-size='150' font-weight='bold' fill='%23FFD54F' text-anchor='middle'%3EPIN%3C/text%3E%3C/svg%3E">
+    <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='100' fill='%23121824'/%3E%3Ccircle cx='256' cy='256' r='180' fill='%231E293B' stroke='%23FFD54F' stroke-width='24'/%3E%3Ctext x='256' y='285' font-family='sans-serif' font-size='150' font-weight='bold' fill='%23FFD54F' text-anchor='middle'%3EPIN%3C/text%3E%3C/svg%3E">
+
     <!-- iOS PWA Meta Tags -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -91,7 +96,7 @@
         }
 
         .btn-chat-trigger {
-            font-size: 14px;
+            font-size: 16px;
             color: #FFFFFF;
             font-weight: bold;
             margin-right: 12px;
@@ -466,7 +471,6 @@ Contact: jbilderbeek@hotmail.com
 
     <script>
         const FIREBASE_URL = "https://pinemhi-chat-default-rtdb.europe-west1.firebasedatabase.app/messages.json";
-        const PROXY_URL = "https://api.allorigins.win/raw?url=";
 
         const SECTIONS = [
             { id: 0, title: "HOME", url: "https://www.pinemhi.com/home.php" },
@@ -523,18 +527,50 @@ Contact: jbilderbeek@hotmail.com
             renderSections();
         }
 
-        async function refreshData() {
-            document.getElementById("updated-time").innerText = "Refreshing...";
-            for (let sec of SECTIONS) {
+        async function fetchPageWithFallback(targetUrl) {
+            const proxies = [
+                url => `https://corsproxy.io/?${encodeURIComponent(url)}`,
+                url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+                url => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`
+            ];
+
+            for (let proxyFn of proxies) {
                 try {
-                    let resp = await fetch(PROXY_URL + encodeURIComponent(sec.url));
-                    let html = await resp.text();
-                    parsePage(sec.id, html);
+                    let resp = await fetch(proxyFn(targetUrl));
+                    if (resp.ok) {
+                        let text = await resp.text();
+                        if (text && text.length > 200) {
+                            return text;
+                        }
+                    }
                 } catch(e) {}
             }
-            document.getElementById("updated-time").innerText = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+            return null;
+        }
+
+        async function refreshData() {
+            document.getElementById("updated-time").innerText = "Refreshing...";
+            let anySuccess = false;
+
+            for (let sec of SECTIONS) {
+                let html = await fetchPageWithFallback(sec.url);
+                if (html) {
+                    parsePage(sec.id, html);
+                    anySuccess = true;
+                }
+            }
+
+            if (anySuccess) {
+                document.getElementById("updated-time").innerText = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+            } else {
+                document.getElementById("updated-time").innerText = "Error loading";
+            }
             renderSections();
             checkChatUnread();
+        }
+
+        function formatNumberDots(n) {
+            return new Intl.NumberFormat('de-DE').format(n);
         }
 
         function parsePage(secId, html) {
@@ -552,7 +588,15 @@ Contact: jbilderbeek@hotmail.com
                     pinLine = line;
                 }
                 if (line.match(/\d{4}-\d{2}-\d{2}/) && !timerText) {
-                    timerText = line;
+                    let m = line.match(/(\d{4})[-/](\d{2})[-/](\d{2})(?:\s+(\d{2}):(\d{2}))?/);
+                    if (m) {
+                        let y = m[1].slice(-2);
+                        let month = m[2];
+                        let d = m[3];
+                        let hh = m[4] || "";
+                        let mm = m[5] || "";
+                        timerText = hh ? `${d}/${month}/${y} ${hh}:${mm}` : `${d}/${month}/${y}`;
+                    }
                 }
             }
 
@@ -569,6 +613,27 @@ Contact: jbilderbeek@hotmail.com
                             name: tds[3] ? tds[3].innerText.trim() : (tds[2] ? tds[2].innerText.trim() : ""),
                             date: tds[tds.length - 1].innerText.trim()
                         });
+                    }
+                }
+            }
+
+            // Calculate "score to beat" for PIN section
+            if (secId === 3 && pinLine) {
+                let pinMatch = pinLine.match(/PIN\s+IS\s+SET\s+AT:?\s*([\d.]+)/i);
+                if (pinMatch) {
+                    let pinDigits = pinMatch[1].replace(/\D/g, "");
+                    let pinScore = parseInt(pinDigits) || 0;
+                    if (pinScore > 0) {
+                        let formattedPin = formatNumberDots(pinScore);
+                        if (rows.length > 0 && rows[0].score) {
+                            let distClean = rows[0].score.replace(/\./g, "").replace(",", ".");
+                            let distNum = parseInt(distClean) || 0;
+                            let score1 = pinScore + distNum;
+                            let scoreToBeat = score1 > 0 ? score1 : pinScore;
+                            pinLine = `Pin is set at: ${formattedPin}, score to beat: ${formatNumberDots(scoreToBeat)}`;
+                        } else {
+                            pinLine = `Pin is set at: ${formattedPin}, score to beat: ${formattedPin}`;
+                        }
                     }
                 }
             }
