@@ -795,22 +795,27 @@ Contact: jbilderbeek@hotmail.com
         async function fetchSinglePage(targetUrl) {
             const proxies = [
                 url => `https://corsproxy.io/?${encodeURIComponent(url)}`,
-                url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+                url => `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`,
                 url => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`
             ];
 
             for (let proxyFn of proxies) {
                 try {
                     const controller = new AbortController();
-                    const timeoutId = setTimeout(() => controller.abort(), 3500);
+                    const timeoutId = setTimeout(() => controller.abort(), 2000);
 
                     let resp = await fetch(proxyFn(targetUrl), { signal: controller.signal });
                     clearTimeout(timeoutId);
 
                     if (resp.ok) {
-                        let text = await resp.text();
-                        if (text && text.length > 200) {
-                            return text;
+                        let data = await resp.json().catch(() => null);
+                        let html = (data && data.contents) ? data.contents : null;
+                        if (!html) {
+                            let respText = await fetch(proxyFn(targetUrl));
+                            if (respText.ok) html = await respText.text();
+                        }
+                        if (typeof html === 'string' && html.length > 200) {
+                            return html;
                         }
                     }
                 } catch(e) {}
@@ -823,14 +828,23 @@ Contact: jbilderbeek@hotmail.com
                 let resp = await fetch(FIREBASE_DATA_URL + "?cacheBust=" + Date.now());
                 if (resp.ok) {
                     let data = await resp.json();
-                    if (data && typeof data === 'object') {
+                    if (data) {
                         let count = 0;
-                        Object.keys(data).forEach(id => {
-                            if (data[id] && data[id].rows) {
-                                sectionData[id] = data[id];
-                                count++;
-                            }
-                        });
+                        if (Array.isArray(data)) {
+                            data.forEach((sec, idx) => {
+                                if (sec) {
+                                    sectionData[idx] = sec;
+                                    count++;
+                                }
+                            });
+                        } else if (typeof data === 'object') {
+                            Object.keys(data).forEach(id => {
+                                if (data[id]) {
+                                    sectionData[id] = data[id];
+                                    count++;
+                                }
+                            });
+                        }
                         return count > 0;
                     }
                 }
