@@ -5,6 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>PINemHi</title>
 
+    <!-- No-Cache Meta Tags -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+
     <!-- Base64 PNG App Logo for iOS & Web -->
     <link rel="icon" type="image/png" href="icon.png">
     <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -814,7 +819,7 @@ Contact: jbilderbeek@hotmail.com
                             let respText = await fetch(proxyFn(targetUrl));
                             if (respText.ok) html = await respText.text();
                         }
-                        if (typeof html === 'string' && html.length > 200) {
+                        if (typeof html === 'string' && html.length > 200 && (html.toLowerCase().includes("leaderboard") || html.toLowerCase().includes("pinemhi"))) {
                             return html;
                         }
                     }
@@ -832,14 +837,14 @@ Contact: jbilderbeek@hotmail.com
                         let count = 0;
                         if (Array.isArray(data)) {
                             data.forEach((sec, idx) => {
-                                if (sec) {
+                                if (sec && (sec.rows || sec.timerText || sec.pinLine)) {
                                     sectionData[idx] = sec;
                                     count++;
                                 }
                             });
                         } else if (typeof data === 'object') {
                             Object.keys(data).forEach(id => {
-                                if (data[id]) {
+                                if (data[id] && (data[id].rows || data[id].timerText || data[id].pinLine)) {
                                     sectionData[id] = data[id];
                                     count++;
                                 }
@@ -913,6 +918,10 @@ Contact: jbilderbeek@hotmail.com
         }
 
         function parsePage(secId, html) {
+            if (!html || (!html.toLowerCase().includes("table") && !html.toLowerCase().includes("leaderboard") && !html.toLowerCase().includes("pinemhi"))) {
+                return; // Prevent overwriting good Firebase data with error HTML
+            }
+
             let isHome = (secId === 0);
             let game = "";
             let timerText = "";
