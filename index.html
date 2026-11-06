@@ -615,7 +615,7 @@ Contact: jbilderbeek@hotmail.com
             unpostedDays: localStorage.getItem("unpostedDays") || "3",
             timerWarning: localStorage.getItem("timerWarning") || "0",
             lastReadChat: parseInt(localStorage.getItem("lastReadChat") || "0"),
-            sections: JSON.parse(localStorage.getItem("sections") || JSON.stringify(DEFAULT_SECTIONS))
+            sections: DEFAULT_SECTIONS
         };
 
         let sectionData = {};
@@ -802,7 +802,7 @@ Contact: jbilderbeek@hotmail.com
             for (let proxyFn of proxies) {
                 try {
                     const controller = new AbortController();
-                    const timeoutId = setTimeout(() => controller.abort(), 2000);
+                    const timeoutId = setTimeout(() => controller.abort(), 2500);
 
                     let resp = await fetch(proxyFn(targetUrl), { signal: controller.signal });
                     clearTimeout(timeoutId);
@@ -855,7 +855,7 @@ Contact: jbilderbeek@hotmail.com
         async function refreshData() {
             document.getElementById("updated-time").innerText = config.lang === 'nl' ? "Verversen..." : "Refreshing...";
 
-            // 1. Try Firebase Instant Data
+            // 1. Fetch Firebase Data Instant
             let fbLoaded = await fetchFirebaseData();
             if (fbLoaded) {
                 document.getElementById("updated-time").innerText = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
@@ -943,7 +943,7 @@ Contact: jbilderbeek@hotmail.com
             for (let trHtml of trMatches) {
                 let lowerTr = trHtml.toLowerCase();
                 // STOP parsing if we reach "Last 5 Winners" or "Previous Week" table!
-                if (lowerTr.includes("last 5 winners") || lowerTr.includes("previous week") || lowerTr.includes("winner")) {
+                if (lowerTr.includes("last 5 winners") || lowerTr.includes("previous week") || (lowerTr.includes("winner") && !lowerTr.includes("game name"))) {
                     break;
                 }
 
