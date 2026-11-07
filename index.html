@@ -1012,13 +1012,22 @@ Contact: jbilderbeek@hotmail.com
             }
 
             // Extract table rows via Regex
-            let trMatches = html.match(/<tr[^>]*>[\s\S]*?<\/tr>/gi) || [];
+            // Weekly/5min/PIN pages: only read the FIRST table (interim standings).
+            // The second table is the history of previous winners.
+            let source = html;
+            if (!isHome) {
+                let firstTable = html.match(/<table[\s\S]*?<\/table>/i);
+                if (firstTable) source = firstTable[0];
+            }
+            let trMatches = source.match(/<tr[^>]*>[\s\S]*?<\/tr>/gi) || [];
             if (trMatches.length === 0) return; // not a real data page: keep old data
             let headerCols = [];
 
             for (let trHtml of trMatches) {
                 let lowerTr = trHtml.toLowerCase();
-                if (lowerTr.includes("last 5 winners") || lowerTr.includes("previous week") || (lowerTr.includes("winner") && !lowerTr.includes("game name"))) {
+                // NOTE: raw HTML contains CSS classes like "winner-1st", so this check
+                // must only be used on the HOME page (other pages use first table only).
+                if (isHome && (lowerTr.includes("last 5 winners") || lowerTr.includes("previous week") || (lowerTr.includes("winner") && !lowerTr.includes("game name")))) {
                     break;
                 }
 
