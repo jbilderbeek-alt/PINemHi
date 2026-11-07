@@ -1,0 +1,41 @@
+name: Fetch PINemHi data
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'   # elke ~10 minuten (GitHub kan dit enkele minuten uitstellen)
+  workflow_dispatch:          # handmatig starten via de Actions-tab
+
+permissions:
+  contents: write
+
+concurrency:
+  group: fetch-data
+  cancel-in-progress: false
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download pages
+        run: |
+          mkdir -p data
+          for p in home week_challenge week_challenge_5min week_challenge_golf; do
+            if curl -fsSL --retry 3 --max-time 30 \
+                 -A "Mozilla/5.0 (compatible; PINemHi-App)" \
+                 "https://www.pinemhi.com/$p.php" -o "data/$p.raw"; then
+              iconv -c -f WINDOWS-1252 -t UTF-8 "data/$p.raw" > "data/$p.html"
+              echo "OK   $p ($(wc -c < data/$p.html) bytes)"
+            else
+              echo "FAIL $p (oude versie blijft staan)"
+            fi
+            rm -f "data/$p.raw"
+          done
+
+      - name: Commit changes
+        run: |
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          git add data
+          git diff --cached --quiet || (git commit -m "Update data" && git push)
