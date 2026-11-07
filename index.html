@@ -602,7 +602,6 @@ Contact: jbilderbeek@hotmail.com
 
     <script>
         const FIREBASE_URL = "https://pinemhi-chat-default-rtdb.europe-west1.firebasedatabase.app/messages.json";
-        const FIREBASE_DATA_URL = "https://pinemhi-chat-default-rtdb.europe-west1.firebasedatabase.app/data.json";
 
         const DEFAULT_SECTIONS = [
             { id: 0, title: "HOME", url: "https://www.pinemhi.com/home.php", enabled: true },
@@ -623,39 +622,7 @@ Contact: jbilderbeek@hotmail.com
             sections: DEFAULT_SECTIONS
         };
 
-        // Embedded initial live data for guaranteed instant rendering everywhere
-        let sectionData = {
-            "0": {
-                game: "", timerText: "", pinLine: "",
-                rows: [
-                    { pos: "", score: "13.444.260", game: "Terminator 2: Judgment Day", name: "DREAMER", date: "05-11" },
-                    { pos: "", score: "9.581.400", game: "Terminator 2: Judgment Day", name: "DREAMER", date: "05-11" },
-                    { pos: "", score: "12.232.820", game: "Terminator 2: Judgment Day", name: "DREAMER", date: "05-11" },
-                    { pos: "", score: "84.340", game: "Robocop", name: "DREAMER", date: "05-11" },
-                    { pos: "", score: "36.779.540", game: "Medieval Madness", name: "Campin", date: "05-11" }
-                ]
-            },
-            "1": {
-                game: "", timerText: "01/11/26 22:00 tot 08/11/26 22:00", pinLine: "",
-                rows: [
-                    { pos: "1", score: "475.500", game: "", name: "JB1980", date: "04-11" },
-                    { pos: "2", score: "426.250", game: "", name: "Tucidides", date: "06-11" },
-                    { pos: "3", score: "288.770", game: "", name: "DJTOYS", date: "02-11" },
-                    { pos: "4", score: "217.370", game: "", name: "RonaldU_NL", date: "02-11" },
-                    { pos: "5", score: "150.220", game: "", name: "Jolo 50 (VPA Team)", date: "02-11" }
-                ]
-            },
-            "2": {
-                game: "", timerText: "04/11/26 22:00 tot 11/11/26 22:00", pinLine: "", rows: []
-            },
-            "3": {
-                game: "", timerText: "02/11/26 22:00 tot 09/11/26 22:00", pinLine: "Pin is set at: 43.900, score to beat: 42.450",
-                rows: [
-                    { pos: "1", score: "-1.450", game: "", name: "JB1980", date: "04-11" }
-                ]
-            }
-        };
-
+        let sectionData = {};
         let chatPollTimer = null;
 
         const STRINGS = {
@@ -724,7 +691,6 @@ Contact: jbilderbeek@hotmail.com
             document.getElementById("cfg-timer-warning").value = config.timerWarning;
 
             renderTabSettings();
-            renderSections(); // Guaranteed instant render of all 4 sections & live scores
             refreshData();
         }
 
@@ -834,27 +800,28 @@ Contact: jbilderbeek@hotmail.com
 
         async function fetchSinglePage(targetUrl) {
             const proxies = [
-                url => `https://corsproxy.io/?${encodeURIComponent(url)}`,
                 url => `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`,
-                url => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`
+                url => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`,
+                url => `https://corsproxy.io/?${encodeURIComponent(url)}`
             ];
 
             for (let proxyFn of proxies) {
                 try {
                     const controller = new AbortController();
-                    const timeoutId = setTimeout(() => controller.abort(), 2500);
+                    const timeoutId = setTimeout(() => controller.abort(), 4000);
 
                     let resp = await fetch(proxyFn(targetUrl), { signal: controller.signal });
                     clearTimeout(timeoutId);
 
                     if (resp.ok) {
-                        let data = await resp.json().catch(() => null);
-                        let html = (data && data.contents) ? data.contents : null;
-                        if (!html) {
-                            let respText = await fetch(proxyFn(targetUrl));
-                            if (respText.ok) html = await respText.text();
-                        }
-                        if (typeof html === 'string' && html.length > 200 && (html.toLowerCase().includes("leaderboard") || html.toLowerCase().includes("pinemhi"))) {
+                        let text = await resp.text();
+                        let html = text;
+                        try {
+                            let json = JSON.parse(text);
+                            if (json && json.contents) html = json.contents;
+                        } catch(e) {}
+
+                        if (typeof html === 'string' && html.length > 200 && (html.toLowerCase().includes("leaderboard") || html.toLowerCase().includes("pinemhi") || html.toLowerCase().includes("table"))) {
                             return html;
                         }
                     }
@@ -863,46 +830,10 @@ Contact: jbilderbeek@hotmail.com
             return null;
         }
 
-        async function fetchFirebaseData() {
-            try {
-                let resp = await fetch(FIREBASE_DATA_URL + "?cacheBust=" + Date.now());
-                if (resp.ok) {
-                    let data = await resp.json();
-                    if (data) {
-                        let count = 0;
-                        if (Array.isArray(data)) {
-                            data.forEach((sec, idx) => {
-                                if (sec && (sec.rows || sec.timerText || sec.pinLine)) {
-                                    sectionData[idx] = sec;
-                                    count++;
-                                }
-                            });
-                        } else if (typeof data === 'object') {
-                            Object.keys(data).forEach(id => {
-                                if (data[id] && (data[id].rows || data[id].timerText || data[id].pinLine)) {
-                                    sectionData[id] = data[id];
-                                    count++;
-                                }
-                            });
-                        }
-                        return count > 0;
-                    }
-                }
-            } catch(e) {}
-            return false;
-        }
-
         async function refreshData() {
             document.getElementById("updated-time").innerText = config.lang === 'nl' ? "Verversen..." : "Refreshing...";
 
-            // 1. Fetch Firebase Data Instant
-            let fbLoaded = await fetchFirebaseData();
-            if (fbLoaded) {
-                document.getElementById("updated-time").innerText = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-                renderSections();
-            }
-
-            // 2. Fetch Live Pages in Parallel
+            // Fetch Live Pages directly from pinemhi.com in parallel
             const promises = config.sections
                 .filter(sec => sec.enabled)
                 .map(async sec => {
@@ -915,13 +846,9 @@ Contact: jbilderbeek@hotmail.com
                 });
 
             let results = await Promise.all(promises);
-            let anyProxySuccess = results.some(r => r === true);
+            let anySuccess = results.some(r => r === true);
 
-            if (anyProxySuccess || fbLoaded) {
-                document.getElementById("updated-time").innerText = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-            } else {
-                document.getElementById("updated-time").innerText = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-            }
+            document.getElementById("updated-time").innerText = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
             renderSections();
             checkChatUnread();
         }
@@ -954,7 +881,7 @@ Contact: jbilderbeek@hotmail.com
 
         function parsePage(secId, html) {
             if (!html || (!html.toLowerCase().includes("table") && !html.toLowerCase().includes("leaderboard") && !html.toLowerCase().includes("pinemhi"))) {
-                return; // Prevent overwriting good Firebase data with error HTML
+                return;
             }
 
             let isHome = (secId === 0);
