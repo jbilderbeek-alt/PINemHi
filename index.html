@@ -15,6 +15,7 @@
     <link rel="apple-touch-icon" href="apple-touch-icon.png">
 
     <!-- iOS PWA Meta Tags -->
+    <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="PINemHi">
@@ -353,11 +354,13 @@
             padding: 10px 14px;
             border-radius: 8px;
             max-width: 85%;
+
         }
 
         .chat-bubble.me {
             align-self: flex-end;
             background-color: #334155;
+            cursor: pointer;
         }
 
         .chat-bubble.pinned {
@@ -387,6 +390,20 @@
             font-size: 13px;
             color: #FFFFFF;
             margin-top: 4px;
+        }
+
+        .chat-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 4px;
+            font-size: 10px;
+            color: #90A4AE;
+        }
+
+        .chat-action-btn {
+            color: #FFD54F;
+            cursor: pointer;
+            text-decoration: underline;
         }
 
         .chat-input-bar {
@@ -554,7 +571,7 @@
         <div class="modal-header">
             <button class="btn-back" onclick="closeModal('chat-modal')">←</button>
             <div style="flex-grow: 1;">
-                <h2 style="color: #FFF; font-size: 16px;">PINemHi Chat 💬</h2>
+                <h2 style="color: #FFF; font-size: 16px;" id="chat-header-title">PINemHi Chat 💬</h2>
                 <span style="font-size: 11px; color: #90A4AE;" id="chat-user-status"></span>
             </div>
             <button class="header-btn" onclick="loadChatMessages()">↻</button>
@@ -601,7 +618,7 @@ Contact: jbilderbeek@hotmail.com
     </div>
 
     <script>
-        const FIREBASE_URL = "https://pinemhi-chat-default-rtdb.europe-west1.firebasedatabase.app/messages.json";
+        const BASE_DB_URL = "https://pinemhi-chat-default-rtdb.europe-west1.firebasedatabase.app";
 
         const DEFAULT_SECTIONS = [
             { id: 0, title: "HOME", url: "https://www.pinemhi.com/home.php", enabled: true },
@@ -618,11 +635,43 @@ Contact: jbilderbeek@hotmail.com
             notifyUnposted: localStorage.getItem("notifyUnposted") === "true",
             unpostedDays: localStorage.getItem("unpostedDays") || "3",
             timerWarning: localStorage.getItem("timerWarning") || "0",
-            lastReadChat: parseInt(localStorage.getItem("lastReadChat") || "0"),
             sections: DEFAULT_SECTIONS
         };
 
-        let sectionData = {};
+        let activeSectionChat = 0;
+
+        let sectionData = {
+            "0": {
+                game: "", timerText: "", pinLine: "",
+                rows: [
+                    { pos: "", score: "13.444.260", game: "Terminator 2: Judgment Day", name: "DREAMER", date: "05-11" },
+                    { pos: "", score: "9.581.400", game: "Terminator 2: Judgment Day", name: "DREAMER", date: "05-11" },
+                    { pos: "", score: "12.232.820", game: "Terminator 2: Judgment Day", name: "DREAMER", date: "05-11" },
+                    { pos: "", score: "84.340", game: "Robocop", name: "DREAMER", date: "05-11" },
+                    { pos: "", score: "36.779.540", game: "Medieval Madness", name: "Campin", date: "05-11" }
+                ]
+            },
+            "1": {
+                game: "", timerText: "01/11/26 22:00 tot 08/11/26 22:00", pinLine: "",
+                rows: [
+                    { pos: "1", score: "475.500", game: "", name: "JB1980", date: "04-11" },
+                    { pos: "2", score: "426.250", game: "", name: "Tucidides", date: "06-11" },
+                    { pos: "3", score: "288.770", game: "", name: "DJTOYS", date: "02-11" },
+                    { pos: "4", score: "217.370", game: "", name: "RonaldU_NL", date: "02-11" },
+                    { pos: "5", score: "150.220", game: "", name: "Jolo 50 (VPA Team)", date: "02-11" }
+                ]
+            },
+            "2": {
+                game: "", timerText: "04/11/26 22:00 tot 11/11/26 22:00", pinLine: "", rows: []
+            },
+            "3": {
+                game: "", timerText: "02/11/26 22:00 tot 09/11/26 22:00", pinLine: 'Pin is set at: 43.900, score to beat: <span style="color:#FFFFFF;">42.450</span>',
+                rows: [
+                    { pos: "1", score: "-1.450", game: "", name: "JB1980", date: "04-11" }
+                ]
+            }
+        };
+
         let chatPollTimer = null;
 
         const STRINGS = {
@@ -691,6 +740,7 @@ Contact: jbilderbeek@hotmail.com
             document.getElementById("cfg-timer-warning").value = config.timerWarning;
 
             renderTabSettings();
+            renderSections();
             refreshData();
         }
 
@@ -743,7 +793,8 @@ Contact: jbilderbeek@hotmail.com
             });
         }
 
-        function openModal(id) {
+        function openModal(id, secId) {
+            if (secId !== undefined) activeSectionChat = secId;
             document.getElementById(id).classList.add("active");
             if (id === "chat-modal") {
                 if (!config.username) {
@@ -752,9 +803,12 @@ Contact: jbilderbeek@hotmail.com
                     openModal("settings-modal");
                     return;
                 }
+                let titles = ["PINemHi Chat 💬", "Weekly Competition Chat 💬", "5 Minute Mode Chat 💬", "Closest to the Pin Chat 💬"];
+                document.getElementById("chat-header-title").innerText = titles[activeSectionChat] || "PINemHi Chat 💬";
                 document.getElementById("chat-user-status").innerText = (config.lang === 'nl' ? "Ingelogd als: " : "Logged in as: ") + config.username;
-                localStorage.setItem("lastReadChat", Date.now().toString());
-                let btn = document.getElementById("chat-trigger-btn");
+
+                localStorage.setItem(`lastReadChat_${activeSectionChat}`, Date.now().toString());
+                let btn = document.getElementById(`chat-trigger-btn-${activeSectionChat}`);
                 if (btn) btn.classList.remove("unread");
                 loadChatMessages();
                 chatPollTimer = setInterval(loadChatMessages, 3000);
@@ -798,59 +852,109 @@ Contact: jbilderbeek@hotmail.com
             location.reload();
         }
 
+        function getPinnedMessageText(secId) {
+            switch(secId) {
+                case 1:
+                    return "Welcome to the PINemHi Weekly Competition chat!\nUse this chat for questions and comments about this weeks challenge or to congratulate someone on a great score that was just posted.";
+                case 2:
+                    return "Welcome to the PINemHi 5 Minute Mode chat!\nUse this chat for questions and comments about this weeks challenge or to congratulate someone on a great score that was just posted.";
+                case 3:
+                    return "Welcome to the PINemHi Closest to the Pin chat!\nUse this chat for questions and comments about this weeks challenge or to congratulate someone on a great score that was just posted.";
+                default:
+                    return "Welcome to the PINemHi general chat!\nThis chat is for general Virtual Pinball questions and comments or to congratulate someone on a great score that was just posted.";
+            }
+        }
+
+        // ---- Data loading -------------------------------------------------
+        // 1) Own copy of the pages (data/*.html), refreshed by a GitHub Action
+        // 2) Fallback: public CORS proxies (unreliable, last resort)
+        function localDataUrl(targetUrl) {
+            const name = targetUrl.split('/').pop().replace('.php', '');
+            return `data/${name}.html?t=${Date.now()}`;
+        }
+
+        function looksValid(html) {
+            if (typeof html !== 'string' || html.length < 200) return false;
+            const l = html.toLowerCase();
+            return l.includes("leaderboard") || l.includes("pinemhi") || l.includes("table");
+        }
+
+        async function fetchWithTimeout(url, ms) {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), ms);
+            try {
+                return await fetch(url, { signal: controller.signal, cache: "no-store" });
+            } finally {
+                clearTimeout(timeoutId);
+            }
+        }
+
         async function fetchSinglePage(targetUrl) {
+            // 1. Own data (same origin, no CORS problems)
+            try {
+                const resp = await fetchWithTimeout(localDataUrl(targetUrl), 8000);
+                if (resp.ok) {
+                    const html = await resp.text();
+                    if (looksValid(html)) return html;
+                }
+            } catch (e) {}
+
+            // 2. Fallback proxies
             const proxies = [
                 url => `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`,
-                url => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`,
-                url => `https://corsproxy.io/?${encodeURIComponent(url)}`
+                url => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`
             ];
-
             for (let proxyFn of proxies) {
                 try {
-                    const controller = new AbortController();
-                    const timeoutId = setTimeout(() => controller.abort(), 4000);
-
-                    let resp = await fetch(proxyFn(targetUrl), { signal: controller.signal });
-                    clearTimeout(timeoutId);
-
+                    const resp = await fetchWithTimeout(proxyFn(targetUrl), 8000);
                     if (resp.ok) {
-                        let text = await resp.text();
-                        let html = text;
+                        let html = await resp.text();
                         try {
-                            let json = JSON.parse(text);
+                            let json = JSON.parse(html);
                             if (json && json.contents) html = json.contents;
-                        } catch(e) {}
-
-                        if (typeof html === 'string' && html.length > 200 && (html.toLowerCase().includes("leaderboard") || html.toLowerCase().includes("pinemhi") || html.toLowerCase().includes("table"))) {
-                            return html;
-                        }
+                        } catch (e) {}
+                        if (looksValid(html)) return html;
                     }
-                } catch(e) {}
+                } catch (e) {}
             }
             return null;
         }
 
-        async function refreshData() {
-            document.getElementById("updated-time").innerText = config.lang === 'nl' ? "Verversen..." : "Refreshing...";
+        let isRefreshing = false;
+        let lastRefresh = 0;
 
-            // Fetch Live Pages directly from pinemhi.com in parallel
-            const promises = config.sections
-                .filter(sec => sec.enabled)
-                .map(async sec => {
-                    let html = await fetchSinglePage(sec.url);
+        async function refreshData() {
+            if (isRefreshing) return;
+            isRefreshing = true;
+            lastRefresh = Date.now();
+            const label = document.getElementById("updated-time");
+            label.innerText = config.lang === 'nl' ? "Verversen..." : "Refreshing...";
+
+            try {
+                const secs = config.sections.filter(sec => sec.enabled);
+                const results = await Promise.all(secs.map(async sec => {
+                    const html = await fetchSinglePage(sec.url);
                     if (html) {
                         parsePage(sec.id, html);
                         return true;
                     }
                     return false;
-                });
+                }));
 
-            let results = await Promise.all(promises);
-            let anySuccess = results.some(r => r === true);
-
-            document.getElementById("updated-time").innerText = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-            renderSections();
-            checkChatUnread();
+                const ok = results.filter(Boolean).length;
+                const time = new Date().toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
+                if (ok === 0) {
+                    label.innerText = config.lang === 'nl' ? "⚠ Laden mislukt" : "⚠ Update failed";
+                } else if (ok < results.length) {
+                    label.innerText = time + " ⚠";
+                } else {
+                    label.innerText = time;
+                }
+                renderSections();
+                checkChatUnread();
+            } finally {
+                isRefreshing = false;
+            }
         }
 
         function formatNumberDots(n) {
@@ -909,11 +1013,11 @@ Contact: jbilderbeek@hotmail.com
 
             // Extract table rows via Regex
             let trMatches = html.match(/<tr[^>]*>[\s\S]*?<\/tr>/gi) || [];
+            if (trMatches.length === 0) return; // not a real data page: keep old data
             let headerCols = [];
 
             for (let trHtml of trMatches) {
                 let lowerTr = trHtml.toLowerCase();
-                // STOP parsing if we reach "Last 5 Winners" or "Previous Week" table!
                 if (lowerTr.includes("last 5 winners") || lowerTr.includes("previous week") || (lowerTr.includes("winner") && !lowerTr.includes("game name"))) {
                     break;
                 }
@@ -924,7 +1028,6 @@ Contact: jbilderbeek@hotmail.com
                 if (cells.length >= 3) {
                     let firstCell = cells[0].toLowerCase();
 
-                    // Check for table header row
                     if (firstCell.includes("pos") || firstCell.includes("submitted") || firstCell.includes("score") || firstCell.includes("week")) {
                         headerCols = cells.map(c => c.toLowerCase());
                         continue;
@@ -940,7 +1043,6 @@ Contact: jbilderbeek@hotmail.com
                     let idxDate = findColIndex(headerCols, ["date", "datum", "tijd", "time"]);
 
                     if (isHome) {
-                        // HOME: SCORE (c2), GAME (c3), NAME (c4), DATE (c5)
                         let valScore = (idxScore >= 0 && cells[idxScore]) ? cells[idxScore] : cells[0];
                         let valGame = (idxGame >= 0 && cells[idxGame]) ? cells[idxGame] : (cells[2] || "");
                         let valName = (idxName >= 0 && cells[idxName]) ? cells[idxName] : (cells[1] || "");
@@ -954,7 +1056,6 @@ Contact: jbilderbeek@hotmail.com
                             date: shortDate(valDate)
                         });
                     } else {
-                        // Challenge tabs: POS (c1), SCORE (c2), NAME (c4), DATE (c5). GAME (c3="") REMOVED!
                         let valPos = cells[0];
                         let valScore = (idxScore >= 0 && cells[idxScore]) ? cells[idxScore] : cells[1];
                         let valName = (idxName >= 0 && cells[idxName]) ? cells[idxName] : (cells[3] || cells[2] || "");
@@ -971,7 +1072,6 @@ Contact: jbilderbeek@hotmail.com
                 }
             }
 
-            // Calculate "score to beat" for PIN section
             if (secId === 3 && pinMatch) {
                 let pinDigits = pinMatch[1].replace(/\D/g, "");
                 let pinScore = parseInt(pinDigits) || 0;
@@ -982,9 +1082,9 @@ Contact: jbilderbeek@hotmail.com
                         let distNum = parseInt(distClean.replace(/[^\d-]/g, '')) || 0;
                         let score1 = pinScore + distNum;
                         let scoreToBeat = score1 > 0 ? score1 : pinScore;
-                        pinLine = `Pin is set at: ${formattedPin}, score to beat: ${formatNumberDots(scoreToBeat)}`;
+                        pinLine = `Pin is set at: ${formattedPin}, score to beat: <span style="color:#FFFFFF;">${formatNumberDots(scoreToBeat)}</span>`;
                     } else {
-                        pinLine = `Pin is set at: ${formattedPin}, score to beat: ${formattedPin}`;
+                        pinLine = `Pin is set at: ${formattedPin}, score to beat: <span style="color:#FFFFFF;">${formattedPin}</span>`;
                     }
                 }
             }
@@ -1004,7 +1104,7 @@ Contact: jbilderbeek@hotmail.com
                 let card = document.createElement("div");
                 card.className = "section-card";
 
-                let chatBtn = isHome ? `<span class="btn-chat-trigger" id="chat-trigger-btn" onclick="event.stopPropagation(); openModal('chat-modal')">💬</span>` : "";
+                let chatBtn = `<span class="btn-chat-trigger" id="chat-trigger-btn-${sec.id}" onclick="event.stopPropagation(); openModal('chat-modal', ${sec.id})">💬</span>`;
 
                 card.innerHTML = `
                     <div class="section-header" onclick="toggleCard(${sec.id})">
@@ -1050,7 +1150,8 @@ Contact: jbilderbeek@hotmail.com
 
         async function loadChatMessages() {
             try {
-                let resp = await fetch(FIREBASE_URL + '?orderBy="$key"&limitToLast=100');
+                let chatUrl = `${BASE_DB_URL}/messages/sec_${activeSectionChat}.json?orderBy="$key"&limitToLast=100`;
+                let resp = await fetch(chatUrl);
                 let data = await resp.json();
                 let list = document.getElementById("chat-list");
                 list.innerHTML = "";
@@ -1060,7 +1161,7 @@ Contact: jbilderbeek@hotmail.com
                 pinned.className = "chat-bubble pinned";
                 pinned.innerHTML = `
                     <div class="chat-sender" style="color: #FFD54F">📌 PINemHi</div>
-                    <div class="chat-text">Welcome to the PINemHI chat! Feel free to discuss strategies or congratulate someone with a score!</div>
+                    <div class="chat-text" style="white-space: pre-wrap;">${getPinnedMessageText(activeSectionChat)}</div>
                 `;
                 list.appendChild(pinned);
 
@@ -1071,12 +1172,24 @@ Contact: jbilderbeek@hotmail.com
                         let isMe = config.username && m.sender.toLowerCase() === config.username.toLowerCase();
                         let bubble = document.createElement("div");
                         bubble.className = "chat-bubble " + (isMe ? "me" : "");
+
+                        let actionsHtml = isMe ? `
+                            <div class="chat-actions">
+                                <span class="chat-action-btn" onclick="event.stopPropagation(); editWebMessage('${k}', '${m.text.replace(/'/g, "\\'")}')">${config.lang === 'nl' ? 'Bewerken' : 'Edit'}</span>
+                                <span class="chat-action-btn" onclick="event.stopPropagation(); deleteWebMessage('${k}')">${config.lang === 'nl' ? 'Verwijderen' : 'Delete'}</span>
+                            </div>
+                        ` : '';
+
+                        let timeStr = new Date(m.timestamp).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+                        if (m.edited) timeStr += config.lang === 'nl' ? ' (bewerkt)' : ' (edited)';
+
                         bubble.innerHTML = `
                             <div>
                                 <span class="chat-sender">${m.sender}</span>
-                                <span class="chat-time">${new Date(m.timestamp).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</span>
+                                <span class="chat-time">${timeStr}</span>
                             </div>
                             <div class="chat-text">${m.text}</div>
+                            ${actionsHtml}
                         `;
                         list.appendChild(bubble);
                     });
@@ -1092,30 +1205,69 @@ Contact: jbilderbeek@hotmail.com
             if (!text || !config.username) return;
 
             input.value = "";
-            fetch(FIREBASE_URL, {
+            let chatUrl = `${BASE_DB_URL}/messages/sec_${activeSectionChat}.json`;
+            fetch(chatUrl, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     sender: config.username,
                     text: text,
-                    timestamp: Date.now()
+                    timestamp: Date.now(),
+                    edited: false
                 })
             }).then(() => loadChatMessages());
         }
 
-        function checkChatUnread() {
-            fetch(FIREBASE_URL + '?orderBy="$key"&limitToLast=1')
-                .then(r => r.json())
-                .then(data => {
-                    if (data) {
-                        let key = Object.keys(data)[0];
-                        if (data[key].timestamp > config.lastReadChat) {
-                            let btn = document.getElementById("chat-trigger-btn");
-                            if (btn) btn.classList.add("unread");
-                        }
-                    }
-                }).catch(() => {});
+        function editWebMessage(msgId, oldText) {
+            let newText = prompt(config.lang === 'nl' ? "Bericht bewerken:" : "Edit message:", oldText);
+            if (newText && newText.trim() !== "" && newText !== oldText) {
+                let msgUrl = `${BASE_DB_URL}/messages/sec_${activeSectionChat}/${msgId}.json`;
+                fetch(msgUrl, {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        text: newText.trim(),
+                        edited: true
+                    })
+                }).then(() => loadChatMessages());
+            }
         }
+
+        function deleteWebMessage(msgId) {
+            if (confirm(config.lang === 'nl' ? "Weet je zeker dat je dit bericht wilt verwijderen?" : "Are you sure you want to delete this message?")) {
+                let msgUrl = `${BASE_DB_URL}/messages/sec_${activeSectionChat}/${msgId}.json`;
+                fetch(msgUrl, { method: "DELETE" }).then(() => loadChatMessages());
+            }
+        }
+
+        function checkChatUnread() {
+            for (let secId = 0; secId <= 3; secId++) {
+                let chatUrl = `${BASE_DB_URL}/messages/sec_${secId}.json?orderBy="$key"&limitToLast=1`;
+                fetch(chatUrl)
+                    .then(r => r.json())
+                    .then(data => {
+                        if (data) {
+                            let key = Object.keys(data)[0];
+                            let lastRead = parseInt(localStorage.getItem(`lastReadChat_${secId}`) || "0");
+                            if (data[key].timestamp > lastRead) {
+                                let btn = document.getElementById(`chat-trigger-btn-${secId}`);
+                                if (btn) btn.classList.add("unread");
+                            }
+                        }
+                    }).catch(() => {});
+            }
+        }
+
+        // Auto refresh: when the app comes back to the foreground and every 5 minutes
+        document.addEventListener("visibilitychange", () => {
+            if (!document.hidden && Date.now() - lastRefresh > 60000) refreshData();
+        });
+        window.addEventListener("pageshow", e => {
+            if (e.persisted) refreshData();
+        });
+        setInterval(() => {
+            if (!document.hidden) refreshData();
+        }, 5 * 60 * 1000);
 
         window.onload = init;
     </script>
