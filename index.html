@@ -137,11 +137,20 @@
         }
 
         /* Text Line / Timer */
+        .game-title {
+            color: #FFD54F;
+            font-size: 19px;
+            font-weight: normal;
+            line-height: 1.25;
+            margin: 2px 0 6px 0;
+            text-align: left;
+        }
+
         .text-line {
             color: #B0BEC5;
-            font-size: 12px;
+            font-size: 12.5px;
             margin-bottom: 6px;
-            text-align: center;
+            text-align: left;
         }
 
         .text-line.warning {
@@ -983,6 +992,23 @@ Contact: jbilderbeek@hotmail.com
             return -1;
         }
 
+        function decodeEntities(s) {
+            return s.replace(/&amp;/gi, "&").replace(/&lt;/gi, "<").replace(/&gt;/gi, ">")
+                    .replace(/&quot;/gi, '"').replace(/&#0?39;/g, "'").replace(/&nbsp;/gi, " ");
+        }
+
+        function escapeHtml(s) {
+            return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        }
+
+        // "2026-11-01 22:00:04" -> "01/11/26 22:00"
+        function formatPeriodDate(str) {
+            let m = str.match(/(\d{4})[-/](\d{2})[-/](\d{2})(?:\s+(\d{2}):(\d{2}))?/);
+            if (!m) return str;
+            let base = `${m[3]}/${m[2]}/${m[1].slice(-2)}`;
+            return m[4] ? `${base} ${m[4]}:${m[5]}` : base;
+        }
+
         function parsePage(secId, html) {
             if (!html || (!html.toLowerCase().includes("table") && !html.toLowerCase().includes("leaderboard") && !html.toLowerCase().includes("pinemhi"))) {
                 return;
@@ -1009,6 +1035,20 @@ Contact: jbilderbeek@hotmail.com
                 let hh = dateMatch[4] || "";
                 let mm = dateMatch[5] || "";
                 timerText = hh ? `${d}/${month}/${y} ${hh}:${mm}` : `${d}/${month}/${y}`;
+            }
+
+            // Game name and challenge period (weekly / 5 min / PIN pages)
+            if (!isHome) {
+                let gm = html.match(/<b\s[^>]*class=["'][^"']*game-name[^"']*["'][^>]*>([\s\S]*?)<\/b>/i);
+                if (gm) game = decodeEntities(gm[1].replace(/<[^>]+>/g, "").trim());
+
+                let pm = html.match(/<i\s[^>]*class=["'][^"']*date-range[^"']*["'][^>]*>([\s\S]*?)<\/i>/i);
+                if (pm) {
+                    let parts = pm[1].replace(/<[^>]+>/g, "").match(/\d{4}[-/]\d{2}[-/]\d{2}(?:\s+\d{2}:\d{2})?/g);
+                    if (parts && parts.length >= 2) {
+                        timerText = formatPeriodDate(parts[0]) + " --- " + formatPeriodDate(parts[1]);
+                    }
+                }
             }
 
             // Extract table rows via Regex
@@ -1122,8 +1162,9 @@ Contact: jbilderbeek@hotmail.com
                         <span class="section-arrow" id="arrow-${sec.id}">▼</span>
                     </div>
                     <div class="section-content" id="content-${sec.id}">
-                        ${data.pinLine ? `<div class="text-line">${data.pinLine}</div>` : ''}
+                        ${(!isHome && data.game) ? `<div class="game-title">${escapeHtml(data.game)}</div>` : ''}
                         ${data.timerText ? `<div class="text-line">${data.timerText}</div>` : ''}
+                        ${data.pinLine ? `<div class="text-line">${data.pinLine}</div>` : ''}
                         <table class="table">
                             ${data.rows.length === 0 ? '<tr><td colspan="5" style="text-align:center; color:#90A4AE;">No scores posted yet</td></tr>' : ''}
                             ${data.rows.map(r => {
