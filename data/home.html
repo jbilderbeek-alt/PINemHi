@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <title>Latest Pinball Scores & News</title>
+    <style>
+        /* Google Fonts voor de arcade & tech vibe */
+        @import url('https://googleapis.com');
+
+        body {
+            background-color: #0d1117; 
+            color: #e6edf3;
+            font-family: 'Rajdhani', Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            text-align: center;
+            font-size: 16px;
+        }
+        
+        .title-container {
+            margin-bottom: 25px;
+        }
+
+        /* Moderne CSS Gaming Banner */
+        .brand-banner {
+            background: linear-gradient(180deg, #161b22 0%, #0d1117 100%);
+            border: 1px solid #30363d;
+            border-bottom: 3px solid #ff0055; /* Matched met de sidebar-accentlijn */
+            border-radius: 8px;
+            padding: 10px 20px;
+            max-width: 1100px;
+            margin: 0 auto 30px auto;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.5);
+        }
+
+        /* UPGRADE: Exact dezelfde neon-arcadegloed als in de index */
+        .brand-title {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 38px;
+            font-weight: 900;
+            margin: 0;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            color: #ffffff;
+            /* De iconische gelaagde wit-cyaan-roze gloed */
+            text-shadow: 
+                0 0 5px #ffffff,
+                0 0 15px #00f0ff,
+                0 0 30px #00f0ff,
+                0 0 45px #ff0055;
+        }
+
+        .brand-subtitle {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 11px;
+            font-weight: 700;
+            color: #ff0055; /* Felroze subtitel */
+            text-transform: uppercase;
+            letter-spacing: 5px;
+            margin-top: 5px;
+            display: block;
+            text-shadow: 0 0 8px rgba(255, 0, 85, 0.6);
+        }
+
+        /* Neon Sectietitels */
+        .section-title {
+            font-family: 'Orbitron', sans-serif;
+            font-weight: 700;
+            font-size: 0.8em;
+            margin: 10px 0 15px 0;
+            text-transform: uppercase;
+            #ffffff; 
+            text-shadow: 0 0 8px rgba(0, 240, 255, 0.3);
+            letter-spacing: 1px;
+			 /* De iconische gelaagde wit-cyaan-roze gloed */
+            text-shadow: 
+                0 0 5px #ffffff,
+                0 0 15px #00f0ff,
+                0 0 30px #00f0ff,
+                0 0 45px #ff0055;
+        }
+
+        /* Hoofdcontainer voor tabellen */
+        .table-container {
+            width: 100%;
+            max-width: 1100px;
+            margin: 0 auto 25px auto;
+            overflow-x: auto; 
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+        }
+
+        /* Moderne High-score Tabel */
+        .leaderboard-table {
+            width: 100%;
+            border-collapse: collapse;
+            background-color: #161b22;
+            border: 1px solid #30363d;
+            font-size: 0.95em;
+        }
+
+        .leaderboard-table th, .leaderboard-table td {
+            padding: 8px 14px;
+            border-bottom: 1px solid #21262d;
+            transition: all 0.2s ease;
+        }
+
+        .leaderboard-table th {
+            background-color: #21262d;
+            color: #58a6ff; 
+            font-family: 'Orbitron', sans-serif;
+            font-size: 0.85em;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            border-bottom: 2px solid #30363d;
+        }
+
+        .leaderboard-table tr:nth-child(even) {
+            background-color: #1c2128;
+        }
+
+        /* High-tech Hover Animatie voor de rijen */
+        .leaderboard-table tr:hover:not(:first-child) td {
+            background-color: #1f2937;
+            color: #ffffff;
+            border-bottom: 1px solid #00f0ff; 
+            cursor: pointer;
+        }
+        
+        .leaderboard-table tr:hover:not(:first-child) .score-cell {
+            text-shadow: 0 0 8px rgba(255, 199, 44, 0.6); 
+        }
+
+        .text-left { text-align: left; }
+        .text-right { text-align: right; }
+        .text-center { text-align: center; }
+
+        .score-cell {
+            color: #ffc72c; 
+            font-weight: 700;
+        }
+
+        /* Nieuwssectie Styling */
+        .news-box {
+            width: 100%;
+            max-width: 900px;
+            margin: 15px auto;
+            background: #161b22;
+            padding: 5px;
+            box-sizing: border-box;
+            border: 1px solid #30363d;
+            border-top: 4px solid #ff0055; /* Matched met de sidebar-accentlijn */
+            border-radius: 6px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        
+        
+        .news-content {
+            flex-grow: 1;
+            padding: 0 20px;
+        }
+
+        .news-list {
+            margin: 0;
+            padding: 0;
+            list-style: none;
+            text-align: left;
+            font-size: 0.8em;
+        }
+        
+        .news-list li {
+            margin-bottom: 8px;
+            line-height: 1.2;
+            border-bottom: 1px solid rgba(48, 54, 61, 0.5);
+            padding-bottom: 6px;
+        }
+
+        .news-list li:last-child {
+            margin-bottom: 0;
+            border-bottom: none;
+            padding-bottom: 0;
+        }
+        
+        .news-date {
+            font-weight: bold;
+            color: #ff0055; 
+            display: inline-block;
+            width: 110px;
+        }
+
+        @media (max-width: 768px) {
+            .brand-title {
+                font-size: 26px;
+                letter-spacing: 2px;
+            }
+            .brand-subtitle {
+                font-size: 11px;
+                letter-spacing: 3px;
+            }
+            .news-box {
+                flex-direction: column;
+                gap: 15px;
+            }
+            .news-avatar {
+                display: none; 
+            }
+            .news-content {
+                padding: 0;
+            }
+            .news-date {
+                display: block;
+                width: auto;
+                margin-bottom: 2px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Vernieuwde Breedbeeld Gaming Banner met matchende Neon Gloed -->
+    <div class="brand-banner">
+        <h1 class="brand-title">PINemHi Leaderboard</h1>
+        <span class="brand-subtitle">Virtual Pinball High-Score Engine</span>
+    </div>
+
+    <!-- TABEL 1: Latest Normal Scores -->
+    <div class="section-title">Latest Scores Submitted</div>
+    <div class="table-container">
+        <table class="leaderboard-table">
+            <tr>
+                <th>Score</th>
+                <th>Game</th>
+                <th>Name</th>
+                <th>Rom</th>
+                <th>Date</th>
+            </tr>
+            <tr><td class='text-right score-cell'>1.506.984.140</td><td class='text-left'>Attack From Mars</td><td class='text-left' style='color: #8b949e;'>RetroGeek</td><td class='text-center'><span style='background: #21262d; padding: 2px 6px; border-radius: 4px; font-size: 0.85em;'>afm_113b</span></td><td class='text-center' style='font-size: 0.85em; color: #8b949e;'>2026-11-07 21:38:23</td></tr><tr><td class='text-right score-cell'>317.090</td><td class='text-left'>Eight Ball Deluxe</td><td class='text-left' style='color: #8b949e;'>Marian51 (VPA Team)</td><td class='text-center'><span style='background: #21262d; padding: 2px 6px; border-radius: 4px; font-size: 0.85em;'>eballdlx</span></td><td class='text-center' style='font-size: 0.85em; color: #8b949e;'>2026-11-07 21:14:29</td></tr><tr><td class='text-right score-cell'>204.929.900</td><td class='text-left'>Attack From Mars</td><td class='text-left' style='color: #8b949e;'>Marian51 (VPA Team)</td><td class='text-center'><span style='background: #21262d; padding: 2px 6px; border-radius: 4px; font-size: 0.85em;'>afm_113b</span></td><td class='text-center' style='font-size: 0.85em; color: #8b949e;'>2026-11-07 21:11:13</td></tr><tr><td class='text-right score-cell'>6.101.790</td><td class='text-left'>World Poker Tour</td><td class='text-left' style='color: #8b949e;'>JB1980</td><td class='text-center'><span style='background: #21262d; padding: 2px 6px; border-radius: 4px; font-size: 0.85em;'>wpt_140a</span></td><td class='text-center' style='font-size: 0.85em; color: #8b949e;'>2026-11-07 21:03:05</td></tr><tr><td class='text-right score-cell'>175.488.200</td><td class='text-left'>Attack From Mars</td><td class='text-left' style='color: #8b949e;'>RetroGeek</td><td class='text-center'><span style='background: #21262d; padding: 2px 6px; border-radius: 4px; font-size: 0.85em;'>afm_113b</span></td><td class='text-center' style='font-size: 0.85em; color: #8b949e;'>2026-11-07 20:59:37</td></tr><tr><td class='text-right score-cell'>73.332.150</td><td class='text-left'>Attack From Mars</td><td class='text-left' style='color: #8b949e;'>RetroGeek</td><td class='text-center'><span style='background: #21262d; padding: 2px 6px; border-radius: 4px; font-size: 0.85em;'>afm_113b</span></td><td class='text-center' style='font-size: 0.85em; color: #8b949e;'>2026-11-07 20:57:47</td></tr><tr><td class='text-right score-cell'>215.304.350</td><td class='text-left'>Attack From Mars</td><td class='text-left' style='color: #8b949e;'>RetroGeek</td><td class='text-center'><span style='background: #21262d; padding: 2px 6px; border-radius: 4px; font-size: 0.85em;'>afm_113b</span></td><td class='text-center' style='font-size: 0.85em; color: #8b949e;'>2026-11-07 20:56:56</td></tr><tr><td class='text-right score-cell'>1.278.155.730</td><td class='text-left'>Barb Wire</td><td class='text-left' style='color: #8b949e;'>DREAMER</td><td class='text-center'><span style='background: #21262d; padding: 2px 6px; border-radius: 4px; font-size: 0.85em;'>barbwire</span></td><td class='text-center' style='font-size: 0.85em; color: #8b949e;'>2026-11-07 19:59:20</td></tr>        </table> 
+    </div>
+
+    <!-- TABEL 2: Latest 5-Minute Scores -->
+    <div class="section-title">Latest Scores 5-Minute Mode Submitted</div>
+    <div class="table-container">
+        <table class="leaderboard-table">
+            <tr>
+                <th>Score</th>
+                <th>Game</th>
+                <th>Name</th>
+                <th>Rom</th>
+                <th>Date</th>
+            </tr>
+            <tr><td class='text-right score-cell'>10.725.280</td><td class='text-left'>Bad Cats</td><td class='text-left' style='color: #8b949e;'>JB1980</td><td class='text-center'><span style='background: #21262d; padding: 2px 6px; border-radius: 4px; font-size: 0.85em;'>bcats_l5</span></td><td class='text-center' style='font-size: 0.85em; color: #8b949e;'>2026-11-07 20:37:40</td></tr><tr><td class='text-right score-cell'>14.062.180</td><td class='text-left'>The Flintstones</td><td class='text-left' style='color: #8b949e;'>RetroGeek</td><td class='text-center'><span style='background: #21262d; padding: 2px 6px; border-radius: 4px; font-size: 0.85em;'>fs_lx5</span></td><td class='text-center' style='font-size: 0.85em; color: #8b949e;'>2026-11-07 20:00:16</td></tr><tr><td class='text-right score-cell'>3.322.400</td><td class='text-left'>Bad Cats</td><td class='text-left' style='color: #8b949e;'>Harry Koseck</td><td class='text-center'><span style='background: #21262d; padding: 2px 6px; border-radius: 4px; font-size: 0.85em;'>bcats_tcm</span></td><td class='text-center' style='font-size: 0.85em; color: #8b949e;'>2026-11-07 17:26:35</td></tr><tr><td class='text-right score-cell'>1.490.900</td><td class='text-left'>Bad Cats</td><td class='text-left' style='color: #8b949e;'>Harry Koseck</td><td class='text-center'><span style='background: #21262d; padding: 2px 6px; border-radius: 4px; font-size: 0.85em;'>bcats_tcm</span></td><td class='text-center' style='font-size: 0.85em; color: #8b949e;'>2026-11-07 17:21:27</td></tr><tr><td class='text-right score-cell'>5.056.710</td><td class='text-left'>Taxi</td><td class='text-left' style='color: #8b949e;'>ALE 54 (VPA Team)</td><td class='text-center'><span style='background: #21262d; padding: 2px 6px; border-radius: 4px; font-size: 0.85em;'>taxi_l4</span></td><td class='text-center' style='font-size: 0.85em; color: #8b949e;'>2026-11-06 22:59:48</td></tr>        </table> 
+    </div>
+
+    <!-- NIEUWS SECTIE -->
+
+
+    <!-- NIEUWS SECTIE -->
+    <div class="section-title">Latest News</div>
+    <div class="news-box">
+ 
+        <div class="news-content">
+            <ul class="news-list">
+			    <li><span class="news-date">30-oct-2026:</span> Revamped the entire PINemHi LeaderBoard Website !!!</li>
+			    <li><span class="news-date">30-oct-2026:</span> PINemHi App / Widget for Android , Page and Link added --- made by JB1980   (look for it in the SideBar under Code and Apps)</li>
+                <li><span class="news-date">18-mar-2026:</span> New version 3.6.8 is available</li>
+
+            </ul>
+        </div>
+
+    </div>
+
+</body>
+</html>

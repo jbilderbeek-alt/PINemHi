@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <title>Weekly Golf - Closest to the PIN Leaderboard</title>
+    <style>
+        /* Google Fonts importeren voor de arcade & tech look */
+        @import url('https://googleapis.com');
+
+        body {
+            background-color: #0d1117; /* Gelijke donkere achtergrond */
+            color: #e6edf3;
+            font-family: 'Rajdhani', Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            text-align: center;
+            font-size: 16px;
+        }
+
+        /* Compacte Neon Gaming Banner (Gelijk aan de rest) */
+        .brand-banner {
+            background: linear-gradient(180deg, #161b22 0%, #0d1117 100%);
+            border: 1px solid #30363d;
+            border-bottom: 3px solid #ff0055; 
+            border-radius: 8px;
+            padding: 10px 20px; 
+            max-width: 1100px;
+            margin: 0 auto 20px auto;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.5);
+        }
+
+        .brand-title {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 38px;
+            font-weight: 900;
+            margin: 0;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            color: #ffffff;
+            text-shadow: 
+                0 0 5px #ffffff,
+                0 0 15px #00f0ff,
+                0 0 30px #00f0ff,
+                0 0 45px #ff0055;
+        }
+
+        .brand-subtitle {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 11px;
+            font-weight: 700;
+            color: #ff0055;
+            text-transform: uppercase;
+            letter-spacing: 5px;
+            margin-top: 5px;
+            display: block;
+            text-shadow: 0 0 8px rgba(255, 0, 85, 0.6);
+        }
+
+        /* Flexbox-indeling voor de gecentreerde sectiekop met timer */
+        .challenge-header {
+            max-width: 1100px;
+            margin: 25px auto 12px auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .challenge-title {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 0.85em;
+            font-weight: bold;
+            text-transform: uppercase;
+            color: #ffffff;
+            text-shadow: 0 0 8px rgba(0, 240, 255, 0.3);
+            letter-spacing: 1px;
+            text-align: center;
+            flex-grow: 1;
+														/* De iconische gelaagde wit-cyaan-roze gloed */
+            text-shadow: 
+                0 0 5px #ffffff,
+                0 0 15px #00f0ff,
+                0 0 30px #00f0ff,
+                0 0 45px #ff0055;
+        }
+
+        
+        /* De Live Countdown Timer Badge & Spacer */
+        .countdown-clock, .header-spacer {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 0.8em;
+            font-weight: bold;
+            width: 200px;
+            text-align: center;
+            box-sizing: border-box;
+        }
+
+        .countdown-clock {
+            color: #00f0ff;
+            background: rgba(0, 240, 255, 0.1);
+            border: 1px solid #00f0ff;
+            padding: 4px 5px;
+            border-radius: 4px;
+            box-shadow: 0 0 10px rgba(0, 240, 255, 0.2);
+            letter-spacing: 1px;
+        }
+
+        /* Sub-informatie box onder de kop */
+        .game-info-panel {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            max-width: 1100px;
+            margin: 0 auto 20px auto;
+            padding: 15px 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            line-height: 1.6;
+        }
+
+        .game-info-panel b.game-name {
+            color: #ffc72c;
+            font-size: 1.25em;
+        }
+
+        .game-info-panel i.date-range {
+            font-style: normal;
+            font-size: 0.85em;
+            color: #8b949e;
+            background: #0d1117;
+            padding: 2px 8px;
+            border-radius: 4px;
+            border: 1px solid #21262d;
+            display: inline-block;
+            margin-top: 5px;
+        }
+
+  
+        /* Container voor tabellen */
+        .table-container {
+            width: 100%;
+            max-width: 1100px;
+            margin: 0 auto 30px auto;
+            overflow-x: auto;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+        }
+
+        /* High-tech Leaderboard Tabellen */
+        .leaderboard-table {
+            width: 100%;
+            border-collapse: collapse;
+            background-color: #161b22;
+            border: 1px solid #30363d;
+            font-size: 0.85em;
+        }
+
+        .leaderboard-table th, .leaderboard-table td {
+            padding: 8px 14px;
+            border-bottom: 1px solid #21262d;
+            transition: all 0.2s ease;
+        }
+
+        .leaderboard-table th {
+            background-color: #21262d;
+            color: #58a6ff;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 0.8em;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            border-bottom: 2px solid #30363d;
+        }
+
+        .leaderboard-table tr:nth-child(even) {
+            background-color: #1c2128;
+        }
+
+        .leaderboard-table tr:hover:not(:first-child) td {
+            background-color: #1f2937;
+            color: #ffffff;
+        }
+
+        .text-left { text-align: left; }
+        .text-right { text-align: right; }
+        .text-center { text-align: center; }
+        
+        /* Oplichtende erepodium kleuren */
+        .score-cell { font-weight: bold; color: #ffc72c; }
+        .winner-1st { font-weight: bold; color: #ffc72c; text-shadow: 0 0 5px rgba(255, 199, 44, 0.2); }
+        .winner-2nd { font-weight: bold; color: #e1e7ed; text-shadow: 0 0 5px rgba(225, 231, 237, 0.3); }
+        .winner-3rd { font-weight: bold; color: #cd7f32; text-shadow: 0 0 5px rgba(205, 127, 50, 0.3); }
+        
+        /* Felle Neon-roze styling voor Hole in One */
+        .hole-in-one {
+            font-weight: bold;
+            color: #ff0055;
+            text-shadow: 0 0 8px rgba(255, 0, 85, 0.6);
+            font-family: 'Orbitron', sans-serif;
+            font-size: 0.9em;
+        }
+
+        /* All Previous Winners Hyperlink knop */
+        a.history-link {
+            font-family: 'Orbitron', sans-serif;
+            color: #00f0ff;
+            font-weight: bold;
+            text-decoration: none;
+            font-size: 0.85em;
+            border: 1px solid #00f0ff;
+            padding: 8px 20px;
+            border-radius: 4px;
+            background: rgba(0, 240, 255, 0.05);
+            transition: all 0.2s ease;
+            display: inline-block;
+            margin-top: 10px;
+            margin-bottom: 20px;
+        }
+
+        a.history-link:hover {
+ color: #ffffff;
+            border-style: solid; /* Rand wordt onafgebroken */
+            background: rgba(0, 240, 255, 0.15); /* Achtergrond wordt feller */
+            box-shadow: 0 0 15px rgba(0, 240, 255, 0.4); /* Neon gloed rondom de knop */
+            text-shadow: 0 0 5px #ffffff;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Gelijkgetrokken Logo Banner (Compact) -->
+    <div class="brand-banner">
+        <h1 class="brand-title">PINemHi Leaderboard</h1>
+        <span class="brand-subtitle">Virtual Pinball High-Score Engine</span>
+    </div>
+
+            <!-- Actieve Golf Challenge Header met perfect gecentreerde titel-knop en live timer -->
+        <div class="challenge-header">
+            <div class="header-spacer"></div>
+			<span class="challenge-title">Weekly Golf: Closest to the PIN Contest</span>
+            <span id="challenge-timer" class="countdown-clock" data-end="2026-11-09 22:00:10">
+                Loading...
+            </span>
+        </div>
+
+        <!-- Infolijst actieve tafel -->
+        <div class="game-info-panel">
+            <b class="game-name">Rolling Stones</b><br>
+            <i class="date-range">2026-11-02 22:00:10 --- 2026-11-09 22:00:10</i>
+            <div style="color: #ff0055; font-family: 'Orbitron', sans-serif; font-size: 0.95em; margin-top: 8px; font-weight: bold; text-shadow: 0 0 5px rgba(255,0,85,0.2);">
+                PIN IS SET AT: 43.900            </div>
+            <div style="font-family: 'Orbitron', sans-serif; font-size: 0.85em; margin-top: 12px; font-weight: bold; color: #ffffff; letter-spacing: 1px; text-transform: uppercase;">Interim Standings</div>
+        </div>
+
+        <!-- TABEL 1: Tussenstand Tabel -->
+        <div class="table-container">
+            <table class="leaderboard-table">
+                <tr>
+                    <th style="width: 60px;">Pos.</th>
+                    <th>Distance to PIN</th>
+                    <th>Game</th>
+                    <th>Name</th>
+                    <th style="width: 100px;">Rom</th>
+                    <th>Date</th>
+                </tr>
+                <tr><td class='text-center winner-1st'>1</td><td class='text-right score-cell'>-620</td><td class='text-left' style='font-weight: 600;'>Rolling Stones</td><td class='text-left winner-1st'>Tucidides</td><td class='text-center'><span style='background: #21262d; padding: 2px 6px; border-radius: 4px; font-size: 0.85em; color: #8b949e;'>rollstob</span></td><td class='text-center' style='font-size: 0.85em; color: #8b949e;'>2026-11-06 17:01:12</td></tr><tr><td class='text-center winner-2nd'>2</td><td class='text-right score-cell'>-1.450</td><td class='text-left' style='font-weight: 600;'>Rolling Stones</td><td class='text-left winner-2nd'>JB1980</td><td class='text-center'><span style='background: #21262d; padding: 2px 6px; border-radius: 4px; font-size: 0.85em; color: #8b949e;'>rollstob</span></td><td class='text-center' style='font-size: 0.85em; color: #8b949e;'>2026-11-04 10:18:26</td></tr>            </table>
+        </div>
+
+    
+
+    <!-- TABEL 2: HISTORISCH OVERZICHT WINNAARS -->
+    <div class="challenge-header">
+        <div class="header-spacer"></div>
+       <span class="challenge-title";>
+            Last 5 Winners Golf: Closest to the PIN Contest
+        </span>
+        <div class="header-spacer"></div>
+    </div>
+    
+    <div class="table-container">
+        <table class="leaderboard-table">
+            <tr>
+                <th style="width: 60px;">Week</th>
+                <th>Distance to PIN</th>
+                <th>Game</th>
+                <th>Name</th>
+                <th style="width: 100px;">Rom</th>
+                <th>Date</th>
+            </tr>
+            <tr><td class='text-center' style='font-weight: bold; color: #58a6ff;'>152</td><td class='text-right score-cell'>-139.020</td><td class='text-left' style='font-weight: 600;'>Hook</td><td class='text-left winner-1st'>JB1980</td><td class='text-center'><span style='background: #21262d; padding: 2px 6px; border-radius: 4px; font-size: 0.85em; color: #8b949e;'>hook_501</span></td><td class='text-center' style='font-size: 0.85em; color: #8b949e;'>2026-11-02 14:29:24</td></tr><tr><td class='text-center' style='font-weight: bold; color: #58a6ff;'>151</td><td class='text-right score-cell'>-14.630</td><td class='text-left' style='font-weight: 600;'>Big Buck Hunter Pro</td><td class='text-left winner-1st'>Derek McEachern</td><td class='text-center'><span style='background: #21262d; padding: 2px 6px; border-radius: 4px; font-size: 0.85em; color: #8b949e;'>bbh_170</span></td><td class='text-center' style='font-size: 0.85em; color: #8b949e;'>2026-10-21 02:13:01</td></tr><tr><td class='text-center' style='font-weight: bold; color: #58a6ff;'>150</td><td class='text-right score-cell'>-371.230</td><td class='text-left' style='font-weight: 600;'>Barb Wire</td><td class='text-left winner-1st'>PESARO</td><td class='text-center'><span style='background: #21262d; padding: 2px 6px; border-radius: 4px; font-size: 0.85em; color: #8b949e;'>barbwire</span></td><td class='text-center' style='font-size: 0.85em; color: #8b949e;'>2026-10-17 11:32:15</td></tr><tr><td class='text-center' style='font-weight: bold; color: #58a6ff;'>149</td><td class='text-right score-cell'>-2.240</td><td class='text-left' style='font-weight: 600;'>Star Trek (Data East)</td><td class='text-left winner-1st'>Tucidides</td><td class='text-center'><span style='background: #21262d; padding: 2px 6px; border-radius: 4px; font-size: 0.85em; color: #8b949e;'>trek_201</span></td><td class='text-center' style='font-size: 0.85em; color: #8b949e;'>2026-10-09 18:33:28</td></tr><tr><td class='text-center' style='font-weight: bold; color: #58a6ff;'>148</td><td class='text-right hole-in-one'>Hole in One</td><td class='text-left' style='font-weight: 600;'>Space Invaders</td><td class='text-left winner-1st'>Davidov88</td><td class='text-center'><span style='background: #21262d; padding: 2px 6px; border-radius: 4px; font-size: 0.85em; color: #8b949e;'>spaceinb</span></td><td class='text-center' style='font-size: 0.85em; color: #8b949e;'>2026-09-29 12:03:13</td></tr>        </table> 
+    </div>
+    
+    <p><a class="history-link" href="week_challenge_golf_history.php">ALL PREVIOUS WINNERS</a></p>
+
+    <!-- LIVE TIMING CONFIGURATIE -->
+    <script>
+        function startChallengeCountdown() {
+            const timerElement = document.getElementById('challenge-timer');
+            if (!timerElement) return;
+
+            const endDateString = timerElement.getAttribute('data-end');
+            if (!endDateString) {
+                timerElement.innerText = "No End Date";
+                return;
+            }
+
+            const targetDate = new Date(endDateString.replace(/-/g, "/"));
+
+            function updateClock() {
+                const now = new Date();
+                const timeDifference = targetDate - now;
+
+                if (timeDifference <= 0) {
+                    timerElement.innerText = "ENDED";
+                    timerElement.style.color = "#ff0055"; 
+                    timerElement.style.borderColor = "#ff0055";
+                    timerElement.style.background = "rgba(255, 0, 85, 0.1)";
+                    clearInterval(clockInterval);
+                    return;
+                }
+
+                const days = Math.floor(timeDifference / (1000 * 60 * 60 * 24));
+                const hours = Math.floor((timeDifference % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                const minutes = Math.floor((timeDifference % (1000 * 60 * 60)) / (1000 * 60));
+                const seconds = Math.floor((timeDifference % (1000 * 60)) / 1000);
+
+                let timerText = "ENDS IN: ";
+                if (days > 0) {
+                    timerText += days + "d ";
+                }
+                timerText += String(hours).padStart(2, '0') + "h " + 
+                             String(minutes).padStart(2, '0') + "m " + 
+                             String(seconds).padStart(2, '0') + "s";
+
+                timerElement.innerText = timerText;
+            }
+
+            updateClock();
+            const clockInterval = setInterval(updateClock, 1000);
+        }
+
+        window.addEventListener('DOMContentLoaded', startChallengeCountdown);
+    </script>
+
+</body>
+</html>
+
