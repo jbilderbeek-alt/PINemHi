@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="app-version" content="1.5">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>PINemHi</title>
 
@@ -519,9 +520,35 @@
 
         .profile-tap {
             cursor: pointer;
-            text-decoration: underline dotted rgba(255, 255, 255, 0.3);
+            text-decoration: underline dotted rgba(255, 255, 255, 0.55);
             text-underline-offset: 3px;
         }
+
+        .update-banner {
+            display: none;
+            position: fixed;
+            left: 12px;
+            right: 12px;
+            bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+            z-index: 500;
+            background: #00B8D4;
+            color: #0B1220;
+            font-weight: bold;
+            font-size: 14px;
+            padding: 12px 14px;
+            border-radius: 10px;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+        }
+
+        .update-banner.show {
+            display: flex;
+        }
+
+        .update-banner span.msg { flex: 1; }
+        .update-banner span.close { padding: 0 6px; font-size: 18px; }
 
         .pf-avatar-row {
             display: flex;
@@ -773,7 +800,7 @@
             <button class="btn-primary" onclick="saveSettings()" id="btn-save">Save</button>
 
             <div class="footer-link" onclick="openModal('info-modal')">
-                <u>V1.5</u><br><span id="lbl-credit">Created by Jochen Bilderbeek<br>Data from Pinemhi.com</span>
+                <u id="app-version-label">V1.5</u><br><span id="lbl-credit">Created by Jochen Bilderbeek<br>Data from Pinemhi.com</span>
             </div>
         </div>
     </div>
@@ -853,7 +880,14 @@ Contact me at: <a href="mailto:jbilderbeek@hotmail.com" style="color: #00E5FF;">
 
 POSSIBLE FEATURES:
 - Personal best scores
-        </div>
+
+<span id="profile-count-line" style="color: #90A4AE;"></span>        </div>
+    </div>
+
+    <!-- New version banner -->
+    <div class="update-banner" id="update-banner" onclick="applyUpdate()">
+        <span class="msg" id="update-banner-msg"></span>
+        <span class="close" onclick="event.stopPropagation(); hideUpdateBanner()">✕</span>
     </div>
 
     <!-- Profile editor -->
@@ -1060,6 +1094,16 @@ POSSIBLE FEATURES:
             renderTabSettings();
             renderSections();
             refreshData();
+
+            const label = document.getElementById("app-version-label");
+            if (label && APP_VERSION) label.textContent = "V" + APP_VERSION;
+
+            loadProfileIndex().then(() => {
+                if (config.username) ensureProfile(config.username).then(() => renderSections());
+            });
+
+            setTimeout(checkForUpdate, 3000);
+            setInterval(checkForUpdate, 30 * 60 * 1000);
         }
 
         function setLanguage(lang) {
@@ -1161,6 +1205,7 @@ POSSIBLE FEATURES:
         function openModal(id, secId) {
             if (secId !== undefined) activeSectionChat = secId;
             if (id === "settings-modal") renderTabSettings();
+            if (id === "info-modal") updateProfileCountLine();
             document.getElementById(id).classList.add("active");
             if (id === "chat-modal") {
                 if (!config.username) {
@@ -1217,6 +1262,10 @@ POSSIBLE FEATURES:
 
             closeModal("settings-modal");
             renderSections();
+
+            if (config.username) {
+                ensureProfile(config.username).then(() => renderSections());
+            }
         }
 
         function clearCache() {
@@ -1304,6 +1353,7 @@ POSSIBLE FEATURES:
             label.innerText = config.lang === 'nl' ? "Verversen..." : "Refreshing...";
 
             try {
+                const indexPromise = loadProfileIndex();
                 const secs = config.sections.filter(sec => sec.enabled);
                 const results = await Promise.all(secs.map(async sec => {
                     const html = await fetchSinglePage(sec.url);
@@ -1314,6 +1364,7 @@ POSSIBLE FEATURES:
                     return false;
                 }));
 
+                await indexPromise;
                 const ok = results.filter(Boolean).length;
                 const time = new Date().toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
                 if (ok === 0) {
@@ -1583,7 +1634,7 @@ POSSIBLE FEATURES:
                                         <td class="col-pos">${isHome ? '' : r.pos}</td>
                                         <td class="col-score">${r.score}</td>
                                         ${isHome ? `<td class="col-game">${r.game}</td>` : ''}
-                                        <td class="col-name profile-tap" data-profile-user="${escapeHtml(r.name)}">${r.name}</td>
+                                        <td class="col-name${profileIndex.has(profileKey(r.name)) ? ' profile-tap' : ''}"${profileIndex.has(profileKey(r.name)) ? ` data-profile-user="${escapeHtml(r.name)}"` : ''}>${r.name}</td>
                                         <td class="col-date">${r.date}</td>
                                     </tr>
                                 `;
@@ -1672,6 +1723,124 @@ POSSIBLE FEATURES:
         }
 
         // ======================= USER PROFILE =======================
+        // ---- Profile index: which usernames have a profile (keys only, no photos) ----
+        let profileIndex = new Set();
+        let profileCount = null;
+
+        function indexUrl(username) {
+            return `${BASE_DB_URL}/profileIndex/${encodeURIComponent(profileKey(username))}.json`;
+        }
+
+        async function loadProfileIndex() {
+            try {
+                const resp = await fetchWithTimeout(`${BASE_DB_URL}/profileIndex.json`, 8000);
+                if (!resp.ok) return;
+                const obj = await resp.json();
+                const keys = obj ? Object.keys(obj) : [];
+                profileIndex = new Set(keys);
+                profileCount = keys.length;
+            } catch (e) {}
+        }
+
+        async function setIndexEntry(username, present) {
+            const key = profileKey(username);
+            try {
+                const resp = await fetch(indexUrl(username), present
+                    ? { method: "PUT", headers: { "Content-Type": "application/json" }, body: "true" }
+                    : { method: "DELETE" });
+                if (resp.ok) {
+                    if (present) profileIndex.add(key); else profileIndex.delete(key);
+                    profileCount = profileIndex.size;
+                }
+            } catch (e) {}
+        }
+
+        function getLocalProfile() {
+            try { return JSON.parse(localStorage.getItem("profile") || "{}") || {}; } catch (e) { return {}; }
+        }
+
+        // Entering a username creates a (minimal) profile automatically.
+        // Other details can be added later. An existing profile is never overwritten,
+        // and a profile that belongs to someone else is never copied or deleted:
+        // only the profile THIS device created (stored locally) can be moved or removed.
+        async function ensureProfile(name) {
+            name = (name || "").trim();
+            if (!name) return;
+            const key = profileKey(name);
+            const local = getLocalProfile();
+            const renamed = !!local.username && profileKey(local.username) !== key;
+            const localIsEmpty = !local.realName && !local.country && !local.favorite && !local.photo;
+            try {
+                const resp = await fetch(profileUrl(name), { cache: "no-store" });
+                if (!resp.ok) return;
+                const existing = await resp.json();
+
+                if (existing) {
+                    if (!profileIndex.has(key)) await setIndexEntry(name, true);
+                    // Typo fixed / switched to an already existing profile: clean up the empty one we made
+                    if (renamed && localIsEmpty) {
+                        try { await fetch(profileUrl(local.username), { method: "DELETE" }); } catch (e) {}
+                        await setIndexEntry(local.username, false);
+                        localStorage.setItem("profile", "{}");
+                    }
+                    return;
+                }
+
+                const carry = local.username ? local : {};
+                const data = {
+                    username: name,
+                    realName: carry.realName || "",
+                    country: carry.country || "",
+                    favorite: carry.favorite || "",
+                    photo: carry.photo || "",
+                    updated: Date.now()
+                };
+                const put = await fetch(profileUrl(name), {
+                    method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data)
+                });
+                if (!put.ok) return;
+                localStorage.setItem("profile", JSON.stringify(data));
+                await setIndexEntry(name, true);
+
+                if (renamed) {   // remove the profile this device made for the previous username
+                    try { await fetch(profileUrl(local.username), { method: "DELETE" }); } catch (e) {}
+                    await setIndexEntry(local.username, false);
+                }
+            } catch (e) {}
+        }
+
+        async function updateProfileCountLine() {
+            const el = document.getElementById("profile-count-line");
+            if (profileCount === null) await loadProfileIndex();
+            el.textContent = profileCount === null ? "" : pfStr().profilesLine + profileCount;
+        }
+
+        // ---- New version notice ----
+        const APP_VERSION = (document.querySelector('meta[name="app-version"]') || {}).content || "";
+        let latestVersion = "";
+
+        async function checkForUpdate() {
+            try {
+                const resp = await fetchWithTimeout(`index.html?t=${Date.now()}`, 8000);
+                if (!resp.ok) return;
+                const m = (await resp.text()).match(/<meta\s+name="app-version"\s+content="([^"]+)"/i);
+                if (m && APP_VERSION && m[1] !== APP_VERSION) {
+                    latestVersion = m[1];
+                    document.getElementById("update-banner-msg").textContent = pfStr().updateMsg.replace("{v}", latestVersion);
+                    document.getElementById("update-banner").classList.add("show");
+                }
+            } catch (e) {}
+        }
+
+        function hideUpdateBanner() {
+            document.getElementById("update-banner").classList.remove("show");
+        }
+
+        function applyUpdate() {
+            const base = location.pathname.replace(/[^\/]*$/, "");
+            location.replace(base + "index.html?v=" + encodeURIComponent(latestVersion || Date.now()));
+        }
+
         const COUNTRY_CODES = ("AD AE AF AG AI AL AM AO AR AS AT AU AW AX AZ BA BB BD BE BF BG BH BI BJ BL BM BN BO BQ BR BS BT BW BY BZ " +
             "CA CC CD CF CG CH CI CK CL CM CN CO CR CU CV CW CX CY CZ DE DJ DK DM DO DZ EC EE EG EH ER ES ET FI FJ FK FM FO FR " +
             "GA GB GD GE GF GG GH GI GL GM GN GP GQ GR GT GU GW GY HK HN HR HT HU ID IE IL IM IN IO IQ IR IS IT JE JM JO JP " +
@@ -1699,6 +1868,9 @@ POSSIBLE FEATURES:
                 cardTitle: "Player profile",
                 loading: "Loading...",
                 noProfile: "This player has not created a profile yet.",
+                noExtra: "This player has not added more info yet.",
+                profilesLine: "👤 Players with a profile: ",
+                updateMsg: "🔄 New version {v} available — tap to update",
                 loadFail: "Could not load the profile.",
                 lblCountry: "Country",
                 lblFavorite: "Favorite pinball machine"
@@ -1721,6 +1893,9 @@ POSSIBLE FEATURES:
                 cardTitle: "Spelersprofiel",
                 loading: "Laden...",
                 noProfile: "Deze speler heeft nog geen profiel gemaakt.",
+                noExtra: "Deze speler heeft nog geen extra info toegevoegd.",
+                profilesLine: "👤 Spelers met een profiel: ",
+                updateMsg: "🔄 Nieuwe versie {v} beschikbaar — tik om bij te werken",
                 loadFail: "Het profiel kon niet worden geladen.",
                 lblCountry: "Land",
                 lblFavorite: "Favoriete flipperkast"
@@ -1857,13 +2032,13 @@ POSSIBLE FEATURES:
                 photo: pfPhoto || "",
                 updated: Date.now()
             };
-            const isEmpty = !data.realName && !data.country && !data.favorite && !data.photo;
             try {
-                const resp = await fetch(profileUrl(pfUser), isEmpty
-                    ? { method: "DELETE" }
-                    : { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
+                const resp = await fetch(profileUrl(pfUser), {
+                    method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data)
+                });
                 if (!resp.ok) throw new Error("HTTP " + resp.status);
-                localStorage.setItem("profile", JSON.stringify(isEmpty ? {} : data));
+                localStorage.setItem("profile", JSON.stringify(data));
+                setIndexEntry(pfUser, true);
                 closeModal("profile-modal");
             } catch (e) {
                 status.textContent = pfStr().saveFail;
@@ -1893,7 +2068,8 @@ POSSIBLE FEATURES:
             if (profile && profile.favorite) {
                 rows += `<div class="pf-card-row"><small>${s.lblFavorite}</small><span>${escapeHtml(profile.favorite)}</span></div>`;
             }
-            const message = failed ? s.loadFail : (!profile ? s.noProfile : "");
+            const hasInfo = profile && (profile.realName || rows || photo);
+            const message = failed ? s.loadFail : (!profile ? s.noProfile : (!hasInfo ? s.noExtra : ""));
 
             body.innerHTML = `
                 <div class="pf-card">
@@ -1995,6 +2171,7 @@ POSSIBLE FEATURES:
         // Auto refresh: when the app comes back to the foreground and every 5 minutes
         document.addEventListener("visibilitychange", () => {
             if (!document.hidden && Date.now() - lastRefresh > 60000) refreshData();
+            if (!document.hidden) checkForUpdate();
         });
         window.addEventListener("pageshow", e => {
             if (e.persisted) refreshData();
