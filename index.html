@@ -301,7 +301,7 @@
             margin-bottom: 16px;
         }
 
-        .input-group label {
+        .input-group > label:not(.checkbox-label) {
             display: block;
             color: #FFD54F;
             font-size: 14px;
@@ -481,6 +481,37 @@
             padding: 10px;
             border-radius: 6px;
             margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        .tab-item-box .checkbox-label {
+            flex: 1;
+            margin-bottom: 0;
+            color: #FFFFFF;
+        }
+
+        .tab-handle {
+            font-size: 22px;
+            line-height: 1;
+            color: #90A4AE;
+            padding: 6px 8px;
+            cursor: grab;
+            touch-action: none;
+        }
+
+        .tab-item-box.dragging {
+            background-color: #334155;
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
+            outline: 1px solid #90A4AE;
+        }
+
+        .tab-item-box.dragging .tab-handle {
+            color: #FFFFFF;
+            cursor: grabbing;
         }
     </style>
 </head>
@@ -534,7 +565,7 @@
             <!-- Tabs & Order -->
             <div class="input-group">
                 <label id="lbl-tabs">Tabs &amp; Order</label>
-                <p id="lbl-tabs-desc">Toggle tabs on/off.</p>
+                <p id="lbl-tabs-desc">Toggle tabs on/off and drag ☰ to change the order.</p>
                 <div id="cfg-tabs-list"></div>
             </div>
 
@@ -670,6 +701,35 @@ Contact: jbilderbeek@hotmail.com
         };
 
         let activeSectionChat = 0;
+        const collapsedSections = new Set();
+
+        // Order + enabled state of the tabs, saved by the settings screen
+        function loadSections() {
+            let base = DEFAULT_SECTIONS.map(s => ({ ...s }));
+            try {
+                const saved = JSON.parse(localStorage.getItem("tabsConfig") || "null");
+                if (Array.isArray(saved)) {
+                    const ordered = [];
+                    saved.forEach(sv => {
+                        const b = base.find(s => s.id === sv.id);
+                        if (b && !ordered.includes(b)) {
+                            b.enabled = sv.enabled !== false;
+                            ordered.push(b);
+                        }
+                    });
+                    base.forEach(b => { if (!ordered.includes(b)) ordered.push(b); });
+                    return ordered;
+                }
+            } catch (e) {}
+            return base;
+        }
+
+        function saveSections() {
+            try {
+                localStorage.setItem("tabsConfig",
+                    JSON.stringify(config.sections.map(s => ({ id: s.id, enabled: s.enabled }))));
+            } catch (e) {}
+        }
 
         let sectionData = {
             "0": {
@@ -713,7 +773,7 @@ Contact: jbilderbeek@hotmail.com
                 color: "Accent Color",
                 colorDesc: "Choose the color used to highlight your row.",
                 tabs: "Tabs & Order",
-                tabsDesc: "Toggle tabs on/off.",
+                tabsDesc: "Toggle tabs on/off and drag ☰ to change the order.",
                 notify: "Notifications",
                 notifyRank: "Notification on rank loss (when someone passes you)",
                 notifyUnposted: "Send notification if you haven't posted a score yet",
@@ -740,7 +800,7 @@ Contact: jbilderbeek@hotmail.com
                 color: "Accentkleur",
                 colorDesc: "Kies de kleur waarmee jouw rij geaccentueerd wordt.",
                 tabs: "Tabs & Volgorde",
-                tabsDesc: "Schakel tabs in/uit.",
+                tabsDesc: "Schakel tabs in/uit en sleep ☰ om de volgorde te wijzigen.",
                 notify: "Meldingen",
                 notifyRank: "Melding bij positieverlies (als iemand je inhaalt)",
                 notifyUnposted: "Melding sturen als je nog geen score hebt gepost",
@@ -763,8 +823,7 @@ Contact: jbilderbeek@hotmail.com
         };
 
         function init() {
-            localStorage.removeItem("sections");
-            config.sections = DEFAULT_SECTIONS;
+            config.sections = loadSections();
 
             setLanguage(config.lang);
             document.getElementById("cfg-username").value = config.username;
@@ -818,21 +877,65 @@ Contact: jbilderbeek@hotmail.com
         function renderTabSettings() {
             let list = document.getElementById("cfg-tabs-list");
             list.innerHTML = "";
-            config.sections.forEach((sec, idx) => {
+            config.sections.forEach(sec => {
                 let box = document.createElement("div");
                 box.className = "tab-item-box";
+                box.dataset.id = sec.id;
                 box.innerHTML = `
                     <label class="checkbox-label">
                         <input type="checkbox" id="tab-chk-${sec.id}" ${sec.enabled ? 'checked' : ''}>
                         <span>${sec.title}</span>
                     </label>
+                    <span class="tab-handle" title="Drag to reorder">☰</span>
                 `;
                 list.appendChild(box);
+            });
+            initTabDrag(list);
+        }
+
+        // Drag & drop reordering (works with touch and mouse via pointer events)
+        function initTabDrag(list) {
+            const mid = el => {
+                const r = el.getBoundingClientRect();
+                return r.top + r.height / 2;
+            };
+
+            list.querySelectorAll(".tab-handle").forEach(handle => {
+                handle.addEventListener("pointerdown", e => {
+                    e.preventDefault();
+                    const item = handle.closest(".tab-item-box");
+                    item.classList.add("dragging");
+                    try { handle.setPointerCapture(e.pointerId); } catch (err) {}
+
+                    handle.onpointermove = ev => {
+                        const y = ev.clientY;
+                        let prev = item.previousElementSibling;
+                        let next = item.nextElementSibling;
+                        while (prev && y < mid(prev)) {
+                            list.insertBefore(item, prev);
+                            prev = item.previousElementSibling;
+                        }
+                        while (next && y > mid(next)) {
+                            list.insertBefore(next, item);
+                            next = item.nextElementSibling;
+                        }
+                    };
+
+                    const stop = () => {
+                        item.classList.remove("dragging");
+                        handle.onpointermove = null;
+                        handle.onpointerup = null;
+                        handle.onpointercancel = null;
+                    };
+                    handle.onpointerup = stop;
+                    handle.onpointercancel = stop;
+                });
             });
         }
 
         function openModal(id, secId) {
             if (secId !== undefined) activeSectionChat = secId;
+            if (id === "settings-modal") renderTabSettings();
             document.getElementById(id).classList.add("active");
             if (id === "chat-modal") {
                 if (!config.username) {
@@ -872,6 +975,13 @@ Contact: jbilderbeek@hotmail.com
                 let chk = document.getElementById(`tab-chk-${sec.id}`);
                 if (chk) sec.enabled = chk.checked;
             });
+
+            // Apply the order from the (dragged) list
+            const order = Array.from(document.querySelectorAll("#cfg-tabs-list .tab-item-box"))
+                               .map(b => parseInt(b.dataset.id));
+            const reordered = order.map(id => config.sections.find(s => s.id === id)).filter(Boolean);
+            if (reordered.length === config.sections.length) config.sections = reordered;
+            saveSections();
 
             localStorage.setItem("username", config.username);
             localStorage.setItem("color", config.color);
@@ -1232,9 +1342,9 @@ Contact: jbilderbeek@hotmail.com
                         <span class="section-title">${sec.title}</span>
                         ${chatBtn}
                         ${isHome ? '' : `<span class="section-timer" id="timer-${sec.id}"></span>`}
-                        <span class="section-arrow" id="arrow-${sec.id}">▼</span>
+                        <span class="section-arrow" id="arrow-${sec.id}">${collapsedSections.has(sec.id) ? '▶' : '▼'}</span>
                     </div>
-                    <div class="section-content" id="content-${sec.id}">
+                    <div class="section-content${collapsedSections.has(sec.id) ? ' collapsed' : ''}" id="content-${sec.id}">
                         ${(!isHome && data.game) ? `<div class="game-title">${escapeHtml(data.game)}</div>` : ''}
                         ${data.timerText ? `<div class="text-line">${data.timerText}</div>` : ''}
                         ${data.pinLine ? `<div class="text-line">${data.pinLine}</div>` : ''}
@@ -1266,9 +1376,11 @@ Contact: jbilderbeek@hotmail.com
             if (content.classList.contains("collapsed")) {
                 content.classList.remove("collapsed");
                 arrow.innerText = "▼";
+                collapsedSections.delete(id);
             } else {
                 content.classList.add("collapsed");
                 arrow.innerText = "▶";
+                collapsedSections.add(id);
             }
         }
 
