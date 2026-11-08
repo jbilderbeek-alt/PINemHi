@@ -502,6 +502,11 @@
             font-weight: bold;
         }
 
+        /* Features that are temporarily hidden (remove the class "feature-hidden" to show them again) */
+        .feature-hidden {
+            display: none;
+        }
+
         /* Profile */
         .profile-edit-link {
             display: inline-block;
@@ -711,7 +716,9 @@
                 <div id="cfg-tabs-list"></div>
             </div>
 
-            <!-- Notifications -->
+            <!-- Notifications: hidden in the web app for now (not supported yet).
+                 To bring it back: remove class="feature-hidden" from the wrapper below. -->
+            <div class="feature-hidden">
             <div class="input-group">
                 <label id="lbl-notify">Notifications</label>
                 <label class="checkbox-label">
@@ -737,6 +744,7 @@
                     <label class="checkbox-label"><input type="checkbox" id="cfg-unposted-sec2" checked> <span>5 MIN MODE</span></label>
                     <label class="checkbox-label"><input type="checkbox" id="cfg-unposted-sec3" checked> <span>CLOSEST TO THE PIN</span></label>
                 </div>
+            </div>
             </div>
 
             <!-- Timer Warning -->
@@ -765,7 +773,7 @@
             <button class="btn-primary" onclick="saveSettings()" id="btn-save">Save</button>
 
             <div class="footer-link" onclick="openModal('info-modal')">
-                <u>V1.4</u><br><span id="lbl-credit">Created by Jochen Bilderbeek<br>Data from Pinemhi.com</span>
+                <u>V1.5</u><br><span id="lbl-credit">Created by Jochen Bilderbeek<br>Data from Pinemhi.com</span>
             </div>
         </div>
     </div>
@@ -796,28 +804,55 @@
             <h2 style="color: #FFF; font-size: 18px;">Info &amp; Version History</h2>
         </div>
         <div class="modal-body" style="white-space: pre-wrap; font-size: 13px; color: #E0E0E0; line-height: 1.5;">
-PINEMHI App and Widget for Android & iOS Web
+PINEMHI App and Widget for Android, webapp for iOS
 By Jochen Bilderbeek, The Netherlands
 
+V1.5 (November 2026)
+- WebApp for iOS live!
+- Added chat to each tab separately
+- Added option to create a profile with some personal information
+- Added options to edit or delete chats (Android: hold message for options, webapp: tap the pencil or cross icon)
+
+
 V1.4 (November 2026)
-- Added more notification options to remind you to compete
+- Added more notification options to remind you to compete (Android only)
 - Added a chat function!
 
 V1.3 (November 2026)
-- English as default
+- Added the score to beat at the PIN contest. Now you can easily see what score you need to beat (a personal request)
+- Better looks for the app
+- English as default, Dutch is available (for the settings)
 - Changed 5 MIN to 5 Minute Mode and PIN to Closest to the pin contest
-- If no score is posted yet, that will be shown
-- Adjusted the notification texts
-- Added Info tab with version history
+- If no score is posted yet, that will be shown.
+- Adjusted the notification texts.
+- Added version history to app (tap the version text at the bottom in settings)
 
 V1.2 (November 2026)
 - Visual adjustments because of changes to the website
+- Added notifications for rank loss can be turned on/off in Settings (Android only)
 - Added a button for Language option in Settings
-- Removed the Game name from the table at Weekly Competition, 5 MIN and PIN
+- Removed the Game name from the table at Weekly Competition, 5 MIN and PIN, because the game's name is already above the scores.
+- Warning sign starts blinking when only 1 hour remains for that mode (app only)
+- Small improvements
+- Uploaded to VPuniverse
 
 v1.1 (October 2026)
-First release.
-Contact: jbilderbeek@hotmail.com
+Initial release
+- Main info from PINemHi website in app and widget (Android only)
+- Settings menu for personal preferences
+- Created logo for app
+- Only available at Pinemhi.com and Tweakers.net
+
+Built this app just for fun and learning vibe-coding.
+I play on my Virtual Pinball cabinet daily and use PINemHi to track scores and do some competition.
+I only didn't like checking the website on my phone so I created the app and widget. 
+During development I came up with some nice additions to the website like a timer in the different competitions and highlighting of your own username. 
+
+Please let me know if you find any bugs or have ideas for improving this app.
+Contact me at: <a href="mailto:jbilderbeek@hotmail.com" style="color: #00E5FF;">jbilderbeek@hotmail.com</a>
+
+POSSIBLE FEATURES:
+- Personal best scores
         </div>
     </div>
 
