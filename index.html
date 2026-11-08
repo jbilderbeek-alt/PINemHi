@@ -431,11 +431,37 @@
             color: #90A4AE;
         }
 
-        .chat-action-btn {
-            color: #FFD54F;
-            cursor: pointer;
-            text-decoration: underline;
+        .chat-actions {
+            gap: 6px;
+            margin-top: 6px;
         }
+
+        .chat-icon-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 30px;
+            height: 26px;
+            padding: 0;
+            background: rgba(255, 255, 255, 0.08);
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .chat-icon-btn svg {
+            width: 15px;
+            height: 15px;
+            fill: none;
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+        .chat-icon-btn.edit svg { stroke: #E0E0E0; }
+        .chat-icon-btn.delete svg { stroke: #FF5252; }
+        .chat-icon-btn:active { background: rgba(255, 255, 255, 0.2); }
 
         .chat-input-bar {
             display: flex;
@@ -701,6 +727,7 @@ Contact: jbilderbeek@hotmail.com
         };
 
         let activeSectionChat = 0;
+        let chatMessageCache = {};
         const collapsedSections = new Set();
 
         // Order + enabled state of the tabs, saved by the settings screen
@@ -1391,6 +1418,7 @@ Contact: jbilderbeek@hotmail.com
                 let data = await resp.json();
                 let list = document.getElementById("chat-list");
                 list.innerHTML = "";
+                chatMessageCache = {};
 
                 // Pinned Message
                 let pinned = document.createElement("div");
@@ -1409,10 +1437,17 @@ Contact: jbilderbeek@hotmail.com
                         let bubble = document.createElement("div");
                         bubble.className = "chat-bubble " + (isMe ? "me" : "");
 
+                        chatMessageCache[k] = m.text;
+                        let editLabel = config.lang === 'nl' ? 'Bewerken' : 'Edit';
+                        let deleteLabel = config.lang === 'nl' ? 'Verwijderen' : 'Delete';
                         let actionsHtml = isMe ? `
                             <div class="chat-actions">
-                                <span class="chat-action-btn" onclick="event.stopPropagation(); editWebMessage('${k}', '${m.text.replace(/'/g, "\\'")}')">${config.lang === 'nl' ? 'Bewerken' : 'Edit'}</span>
-                                <span class="chat-action-btn" onclick="event.stopPropagation(); deleteWebMessage('${k}')">${config.lang === 'nl' ? 'Verwijderen' : 'Delete'}</span>
+                                <button class="chat-icon-btn edit" title="${editLabel}" aria-label="${editLabel}" onclick="event.stopPropagation(); editWebMessage('${k}')">
+                                    <svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+                                </button>
+                                <button class="chat-icon-btn delete" title="${deleteLabel}" aria-label="${deleteLabel}" onclick="event.stopPropagation(); deleteWebMessage('${k}')">
+                                    <svg viewBox="0 0 24 24"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                                </button>
                             </div>
                         ` : '';
 
@@ -1454,7 +1489,8 @@ Contact: jbilderbeek@hotmail.com
             }).then(() => loadChatMessages());
         }
 
-        function editWebMessage(msgId, oldText) {
+        function editWebMessage(msgId) {
+            let oldText = chatMessageCache[msgId] || "";
             let newText = prompt(config.lang === 'nl' ? "Bericht bewerken:" : "Edit message:", oldText);
             if (newText && newText.trim() !== "" && newText !== oldText) {
                 let msgUrl = `${BASE_DB_URL}/messages/sec_${activeSectionChat}/${msgId}.json`;
