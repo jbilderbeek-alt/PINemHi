@@ -502,6 +502,121 @@
             font-weight: bold;
         }
 
+        /* Profile */
+        .profile-edit-link {
+            display: inline-block;
+            margin-top: 8px;
+            font-size: 12px;
+            color: #B0BEC5;
+            text-decoration: underline;
+            cursor: pointer;
+        }
+
+        .profile-tap {
+            cursor: pointer;
+            text-decoration: underline dotted rgba(255, 255, 255, 0.3);
+            text-underline-offset: 3px;
+        }
+
+        .pf-avatar-row {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+
+        .pf-avatar {
+            width: 84px;
+            height: 84px;
+            border-radius: 50%;
+            background: #1E293B center / cover no-repeat;
+            border: 2px solid rgba(255, 255, 255, 0.15);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 34px;
+            color: #90A4AE;
+            flex-shrink: 0;
+            overflow: hidden;
+        }
+
+        .pf-avatar-btns {
+            flex: 1;
+        }
+
+        .pf-avatar-btns .btn-secondary {
+            margin-top: 0;
+            margin-bottom: 8px;
+        }
+
+        .pf-note {
+            color: #90A4AE;
+            font-size: 12px;
+            margin-top: 12px;
+        }
+
+        .pf-status {
+            text-align: center;
+            font-size: 13px;
+            margin-top: 12px;
+            min-height: 18px;
+            color: #FF5252;
+        }
+
+        .pf-card {
+            text-align: center;
+            padding-top: 12px;
+        }
+
+        .pf-card .pf-avatar {
+            width: 132px;
+            height: 132px;
+            font-size: 54px;
+            margin: 0 auto 14px auto;
+        }
+
+        .pf-card-user {
+            color: #FFFFFF;
+            font-size: 22px;
+            font-weight: bold;
+        }
+
+        .pf-card-real {
+            color: #E0E0E0;
+            font-size: 15px;
+            margin-top: 4px;
+        }
+
+        .pf-card-rows {
+            margin-top: 22px;
+            text-align: left;
+        }
+
+        .pf-card-row {
+            background: #1E293B;
+            border-radius: 8px;
+            padding: 10px 14px;
+            margin-bottom: 8px;
+        }
+
+        .pf-card-row small {
+            display: block;
+            color: #90A4AE;
+            font-size: 11px;
+            margin-bottom: 2px;
+        }
+
+        .pf-card-row span {
+            color: #FFFFFF;
+            font-size: 15px;
+        }
+
+        .pf-empty {
+            color: #90A4AE;
+            font-size: 14px;
+            margin-top: 22px;
+        }
+
         .tab-item-box {
             background-color: #1E293B;
             padding: 10px;
@@ -573,6 +688,7 @@
                 <label id="lbl-username">Highlight Username</label>
                 <p id="lbl-username-desc">Enter your username to highlight your position in the lists.</p>
                 <input type="text" id="cfg-username" class="input-control" placeholder="Enter PINemHi username">
+                <a class="profile-edit-link" id="lbl-edit-profile" onclick="openProfileEditor()">👤 Edit Profile</a>
             </div>
 
             <!-- Accent Color -->
@@ -703,6 +819,52 @@ v1.1 (October 2026)
 First release.
 Contact: jbilderbeek@hotmail.com
         </div>
+    </div>
+
+    <!-- Profile editor -->
+    <div class="modal" id="profile-modal">
+        <div class="modal-header">
+            <button class="btn-back" onclick="closeModal('profile-modal')">←</button>
+            <h2 style="color: #FFF; font-size: 18px; flex-grow: 1;" id="pf-title">Edit Profile</h2>
+        </div>
+        <div class="modal-body">
+            <div class="pf-avatar-row">
+                <div class="pf-avatar" id="pf-avatar-preview">👤</div>
+                <div class="pf-avatar-btns">
+                    <button class="btn-secondary" id="pf-btn-photo" onclick="document.getElementById('pf-photo-input').click()">Choose photo</button>
+                    <button class="btn-secondary" id="pf-btn-remove" onclick="removeProfilePhoto()">Remove photo</button>
+                </div>
+                <input type="file" id="pf-photo-input" accept="image/*" style="display:none">
+            </div>
+
+            <div class="input-group">
+                <label id="pf-lbl-real">Real name</label>
+                <input type="text" id="pf-real" class="input-control" maxlength="40">
+            </div>
+
+            <div class="input-group">
+                <label id="pf-lbl-country">Country</label>
+                <select id="pf-country" class="input-control"></select>
+            </div>
+
+            <div class="input-group">
+                <label id="pf-lbl-fav">Favorite pinball machine</label>
+                <input type="text" id="pf-fav" class="input-control" maxlength="40">
+            </div>
+
+            <p class="pf-note" id="pf-note"></p>
+            <button class="btn-primary" id="pf-save" onclick="saveProfile()">Save</button>
+            <div class="pf-status" id="pf-status"></div>
+        </div>
+    </div>
+
+    <!-- Player profile card -->
+    <div class="modal" id="profile-card-modal">
+        <div class="modal-header">
+            <button class="btn-back" onclick="closeModal('profile-card-modal')">←</button>
+            <h2 style="color: #FFF; font-size: 18px; flex-grow: 1;" id="pf-card-title">Player profile</h2>
+        </div>
+        <div class="modal-body" id="pf-card-body"></div>
     </div>
 
     <script>
@@ -899,6 +1061,7 @@ Contact: jbilderbeek@hotmail.com
             document.getElementById("btn-cache").innerText = s.btnCache;
             document.getElementById("btn-save").innerText = s.btnSave;
             document.getElementById("lbl-credit").innerHTML = s.credit;
+            applyProfileStrings();
         }
 
         function renderTabSettings() {
@@ -1205,7 +1368,8 @@ Contact: jbilderbeek@hotmail.com
         }
 
         function escapeHtml(s) {
-            return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+            return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+                            .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
         }
 
         // "2026-11-01 22:00:04" -> "01/11/26 22:00"
@@ -1384,7 +1548,7 @@ Contact: jbilderbeek@hotmail.com
                                         <td class="col-pos">${isHome ? '' : r.pos}</td>
                                         <td class="col-score">${r.score}</td>
                                         ${isHome ? `<td class="col-game">${r.game}</td>` : ''}
-                                        <td class="col-name">${r.name}</td>
+                                        <td class="col-name profile-tap" data-profile-user="${escapeHtml(r.name)}">${r.name}</td>
                                         <td class="col-date">${r.date}</td>
                                     </tr>
                                 `;
@@ -1436,6 +1600,8 @@ Contact: jbilderbeek@hotmail.com
                         let isMe = config.username && m.sender.toLowerCase() === config.username.toLowerCase();
                         let bubble = document.createElement("div");
                         bubble.className = "chat-bubble " + (isMe ? "me" : "");
+                        bubble.dataset.profileUser = m.sender;
+                        bubble.style.cursor = "pointer";
 
                         chatMessageCache[k] = m.text;
                         let editLabel = config.lang === 'nl' ? 'Bewerken' : 'Edit';
@@ -1456,10 +1622,10 @@ Contact: jbilderbeek@hotmail.com
 
                         bubble.innerHTML = `
                             <div>
-                                <span class="chat-sender">${m.sender}</span>
+                                <span class="chat-sender">${escapeHtml(m.sender)}</span>
                                 <span class="chat-time">${timeStr}</span>
                             </div>
-                            <div class="chat-text">${m.text}</div>
+                            <div class="chat-text">${escapeHtml(m.text)}</div>
                             ${actionsHtml}
                         `;
                         list.appendChild(bubble);
@@ -1469,6 +1635,263 @@ Contact: jbilderbeek@hotmail.com
                 container.scrollTop = container.scrollHeight;
             } catch(e) {}
         }
+
+        // ======================= USER PROFILE =======================
+        const COUNTRY_CODES = ("AD AE AF AG AI AL AM AO AR AS AT AU AW AX AZ BA BB BD BE BF BG BH BI BJ BL BM BN BO BQ BR BS BT BW BY BZ " +
+            "CA CC CD CF CG CH CI CK CL CM CN CO CR CU CV CW CX CY CZ DE DJ DK DM DO DZ EC EE EG EH ER ES ET FI FJ FK FM FO FR " +
+            "GA GB GD GE GF GG GH GI GL GM GN GP GQ GR GT GU GW GY HK HN HR HT HU ID IE IL IM IN IO IQ IR IS IT JE JM JO JP " +
+            "KE KG KH KI KM KN KP KR KW KY KZ LA LB LC LI LK LR LS LT LU LV LY MA MC MD ME MF MG MH MK ML MM MN MO MP MQ MR MS MT MU MV MW MX MY MZ " +
+            "NA NC NE NF NG NI NL NO NP NR NU NZ OM PA PE PF PG PH PK PL PM PN PR PS PT PW PY QA RE RO RS RU RW " +
+            "SA SB SC SD SE SG SH SI SJ SK SL SM SN SO SR SS ST SV SX SY SZ TC TD TG TH TJ TK TL TM TN TO TR TT TV TW TZ " +
+            "UA UG US UY UZ VA VC VE VG VI VN VU WF WS XK YE YT ZA ZM ZW").split(" ");
+
+        const PROFILE_STR = {
+            en: {
+                link: "👤 Edit Profile",
+                title: "Edit Profile",
+                photo: "Choose photo",
+                removePhoto: "Remove photo",
+                realName: "Real name",
+                country: "Country",
+                countryNone: "— not specified —",
+                favorite: "Favorite pinball machine",
+                favoritePh: "e.g. Medieval Madness",
+                save: "Save",
+                note: "Everything is optional. Your profile can be seen by other players when they tap your name.",
+                needUsername: "Please enter your PINemHi username first.",
+                saveFail: "Could not save your profile. Please check your connection and try again.",
+                photoFail: "Could not read this photo.",
+                cardTitle: "Player profile",
+                loading: "Loading...",
+                noProfile: "This player has not created a profile yet.",
+                loadFail: "Could not load the profile.",
+                lblCountry: "Country",
+                lblFavorite: "Favorite pinball machine"
+            },
+            nl: {
+                link: "👤 Profiel bewerken",
+                title: "Profiel bewerken",
+                photo: "Kies foto",
+                removePhoto: "Foto verwijderen",
+                realName: "Echte naam",
+                country: "Land",
+                countryNone: "— niet opgegeven —",
+                favorite: "Favoriete flipperkast",
+                favoritePh: "bijv. Medieval Madness",
+                save: "Opslaan",
+                note: "Alles is optioneel. Je profiel is zichtbaar voor andere spelers als ze op je naam tikken.",
+                needUsername: "Vul eerst je PINemHi-gebruikersnaam in.",
+                saveFail: "Profiel opslaan mislukt. Controleer je verbinding en probeer het opnieuw.",
+                photoFail: "Deze foto kon niet worden gelezen.",
+                cardTitle: "Spelersprofiel",
+                loading: "Laden...",
+                noProfile: "Deze speler heeft nog geen profiel gemaakt.",
+                loadFail: "Het profiel kon niet worden geladen.",
+                lblCountry: "Land",
+                lblFavorite: "Favoriete flipperkast"
+            }
+        };
+
+        function pfStr() { return PROFILE_STR[config.lang] || PROFILE_STR.en; }
+
+        function profileKey(username) {
+            return String(username).trim().toLowerCase().replace(/[.$#\[\]\/]/g, "_");
+        }
+
+        function profileUrl(username) {
+            return `${BASE_DB_URL}/profiles/${encodeURIComponent(profileKey(username))}.json`;
+        }
+
+        function flagEmoji(code) {
+            return code.replace(/./g, c => String.fromCodePoint(127397 + c.charCodeAt(0)));
+        }
+
+        function countryName(code) {
+            try {
+                return new Intl.DisplayNames([config.lang], { type: "region" }).of(code) || code;
+            } catch (e) { return code; }
+        }
+
+        function fillCountrySelect(selected) {
+            const sel = document.getElementById("pf-country");
+            const current = selected !== undefined ? selected : sel.value;
+            const items = COUNTRY_CODES
+                .map(c => ({ code: c, name: countryName(c) }))
+                .filter(x => x.name && x.name !== x.code)
+                .sort((a, b) => a.name.localeCompare(b.name, config.lang));
+            sel.innerHTML = `<option value="">${pfStr().countryNone}</option>` +
+                items.map(x => `<option value="${x.code}">${flagEmoji(x.code)}  ${escapeHtml(x.name)}</option>`).join("");
+            sel.value = current || "";
+        }
+
+        function applyProfileStrings() {
+            const s = pfStr();
+            document.getElementById("lbl-edit-profile").innerText = s.link;
+            document.getElementById("pf-title").innerText = s.title;
+            document.getElementById("pf-btn-photo").innerText = s.photo;
+            document.getElementById("pf-btn-remove").innerText = s.removePhoto;
+            document.getElementById("pf-lbl-real").innerText = s.realName;
+            document.getElementById("pf-lbl-country").innerText = s.country;
+            document.getElementById("pf-lbl-fav").innerText = s.favorite;
+            document.getElementById("pf-fav").placeholder = s.favoritePh;
+            document.getElementById("pf-note").innerText = s.note;
+            document.getElementById("pf-save").innerText = s.save;
+            document.getElementById("pf-card-title").innerText = s.cardTitle;
+            fillCountrySelect();
+        }
+
+        let pfUser = "";
+        let pfPhoto = "";
+        let pfTouched = false;
+
+        function setAvatar(el, photo) {
+            if (photo && /^data:image\//.test(photo)) {
+                el.style.backgroundImage = `url("${photo}")`;
+                el.textContent = "";
+            } else {
+                el.style.backgroundImage = "none";
+                el.textContent = "👤";
+            }
+        }
+
+        function fillProfileForm(p) {
+            document.getElementById("pf-real").value = p.realName || "";
+            document.getElementById("pf-fav").value = p.favorite || "";
+            fillCountrySelect(p.country || "");
+            pfPhoto = p.photo || "";
+            setAvatar(document.getElementById("pf-avatar-preview"), pfPhoto);
+        }
+
+        async function openProfileEditor() {
+            const typed = document.getElementById("cfg-username").value.trim();
+            if (!typed) {
+                alert(pfStr().needUsername);
+                return;
+            }
+            pfUser = typed;
+            pfTouched = false;
+            applyProfileStrings();
+            document.getElementById("pf-status").textContent = "";
+
+            let local = {};
+            try { local = JSON.parse(localStorage.getItem("profile") || "{}"); } catch (e) {}
+            fillProfileForm(local.username && profileKey(local.username) === profileKey(pfUser) ? local : {});
+            openModal("profile-modal");
+
+            // Sync with the database (source of truth), unless the user already started typing
+            try {
+                const resp = await fetch(profileUrl(pfUser), { cache: "no-store" });
+                const remote = await resp.json();
+                if (remote && !pfTouched) fillProfileForm(remote);
+            } catch (e) {}
+        }
+
+        async function resizeImage(file, size) {
+            return new Promise((resolve, reject) => {
+                const url = URL.createObjectURL(file);
+                const img = new Image();
+                img.onload = () => {
+                    const side = Math.min(img.width, img.height);
+                    const sx = (img.width - side) / 2;
+                    const sy = (img.height - side) / 2;
+                    const canvas = document.createElement("canvas");
+                    canvas.width = canvas.height = size;
+                    canvas.getContext("2d").drawImage(img, sx, sy, side, side, 0, 0, size, size);
+                    URL.revokeObjectURL(url);
+                    resolve(canvas.toDataURL("image/jpeg", 0.8));
+                };
+                img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("img")); };
+                img.src = url;
+            });
+        }
+
+        function removeProfilePhoto() {
+            pfTouched = true;
+            pfPhoto = "";
+            setAvatar(document.getElementById("pf-avatar-preview"), "");
+        }
+
+        async function saveProfile() {
+            const status = document.getElementById("pf-status");
+            status.textContent = "";
+            const data = {
+                username: pfUser,
+                realName: document.getElementById("pf-real").value.trim(),
+                country: document.getElementById("pf-country").value,
+                favorite: document.getElementById("pf-fav").value.trim(),
+                photo: pfPhoto || "",
+                updated: Date.now()
+            };
+            const isEmpty = !data.realName && !data.country && !data.favorite && !data.photo;
+            try {
+                const resp = await fetch(profileUrl(pfUser), isEmpty
+                    ? { method: "DELETE" }
+                    : { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
+                if (!resp.ok) throw new Error("HTTP " + resp.status);
+                localStorage.setItem("profile", JSON.stringify(isEmpty ? {} : data));
+                closeModal("profile-modal");
+            } catch (e) {
+                status.textContent = pfStr().saveFail;
+            }
+        }
+
+        async function openProfileCard(username) {
+            if (!username) return;
+            const s = pfStr();
+            const body = document.getElementById("pf-card-body");
+            document.getElementById("pf-card-title").innerText = s.cardTitle;
+            body.innerHTML = `<div class="pf-card"><div class="pf-card-user">${escapeHtml(username)}</div><div class="pf-empty">${s.loading}</div></div>`;
+            openModal("profile-card-modal");
+
+            let profile = null, failed = false;
+            try {
+                const resp = await fetch(profileUrl(username), { cache: "no-store" });
+                if (!resp.ok) throw new Error("HTTP " + resp.status);
+                profile = await resp.json();
+            } catch (e) { failed = true; }
+
+            const photo = profile && /^data:image\//.test(profile.photo || "") ? profile.photo : "";
+            let rows = "";
+            if (profile && profile.country) {
+                rows += `<div class="pf-card-row"><small>${s.lblCountry}</small><span>${flagEmoji(String(profile.country))} ${escapeHtml(countryName(String(profile.country)))}</span></div>`;
+            }
+            if (profile && profile.favorite) {
+                rows += `<div class="pf-card-row"><small>${s.lblFavorite}</small><span>${escapeHtml(profile.favorite)}</span></div>`;
+            }
+            const message = failed ? s.loadFail : (!profile ? s.noProfile : "");
+
+            body.innerHTML = `
+                <div class="pf-card">
+                    <div class="pf-avatar" id="pf-card-avatar"></div>
+                    <div class="pf-card-user">${escapeHtml(username)}</div>
+                    ${profile && profile.realName ? `<div class="pf-card-real">${escapeHtml(profile.realName)}</div>` : ""}
+                    ${message ? `<div class="pf-empty">${message}</div>` : ""}
+                    ${rows ? `<div class="pf-card-rows">${rows}</div>` : ""}
+                </div>`;
+            setAvatar(document.getElementById("pf-card-avatar"), photo);
+        }
+
+        document.addEventListener("click", e => {
+            const el = e.target.closest("[data-profile-user]");
+            if (el && el.dataset.profileUser) openProfileCard(el.dataset.profileUser);
+        });
+
+        document.getElementById("pf-photo-input").addEventListener("change", async e => {
+            const file = e.target.files && e.target.files[0];
+            e.target.value = "";
+            if (!file) return;
+            try {
+                pfPhoto = await resizeImage(file, 160);
+                pfTouched = true;
+                setAvatar(document.getElementById("pf-avatar-preview"), pfPhoto);
+                document.getElementById("pf-status").textContent = "";
+            } catch (err) {
+                document.getElementById("pf-status").textContent = pfStr().photoFail;
+            }
+        });
+        document.getElementById("pf-real").addEventListener("input", () => { pfTouched = true; });
+        document.getElementById("pf-fav").addEventListener("input", () => { pfTouched = true; });
+        document.getElementById("pf-country").addEventListener("change", () => { pfTouched = true; });
 
         function sendChatMessage() {
             let input = document.getElementById("chat-input");
