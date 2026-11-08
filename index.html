@@ -119,6 +119,28 @@
             cursor: pointer;
         }
 
+        .section-timer {
+            color: #FFD54F;
+            font-size: 13.5px;
+            font-weight: bold;
+            margin-right: 12px;
+            white-space: nowrap;
+        }
+
+        .section-timer.ended {
+            color: #90A4AE;
+        }
+
+        .section-timer.warning {
+            color: #FF5252;
+            animation: timerBlink 0.5s infinite alternate;
+        }
+
+        @keyframes timerBlink {
+            0% { opacity: 0.2; }
+            100% { opacity: 1; }
+        }
+
         .btn-chat-trigger.unread {
             color: #FFD54F;
         }
@@ -703,6 +725,8 @@ Contact: jbilderbeek@hotmail.com
                 timer: "Timer Warning",
                 timerDesc: "Show a warning (⚠️) when a competition is ending soon.",
                 timer0: "Off",
+                timerEnded: "Ended",
+                timerOpts: { "0": "Off", "15": "15 minutes before end", "30": "30 minutes before end", "60": "1 hour before end", "120": "2 hours before end", "360": "6 hours before end", "720": "12 hours before end", "1440": "24 hours before end" },
                 cache: "Memory & Cache",
                 cacheDesc: "Clear saved data if loading problems occur.",
                 btnCache: "Clear cache",
@@ -728,6 +752,8 @@ Contact: jbilderbeek@hotmail.com
                 timer: "Timer waarschuwing",
                 timerDesc: "Laat een waarschuwing (⚠️) zien als een challenge bijna afloopt.",
                 timer0: "Uit",
+                timerEnded: "Afgelopen",
+                timerOpts: { "0": "Uit", "15": "15 minuten voor afloop", "30": "30 minuten voor afloop", "60": "1 uur voor afloop", "120": "2 uur voor afloop", "360": "6 uur voor afloop", "720": "12 uur voor afloop", "1440": "24 uur voor afloop" },
                 cache: "Geheugen & Cache",
                 cacheDesc: "Wis opgeslagen data als er problemen zijn met laden.",
                 btnCache: "Cache wissen",
@@ -779,6 +805,9 @@ Contact: jbilderbeek@hotmail.com
             document.getElementById("lbl-timer").innerText = s.timer;
             document.getElementById("lbl-timer-desc").innerText = s.timerDesc;
             document.getElementById("opt-timer-0").innerText = s.timer0;
+            Array.from(document.getElementById("cfg-timer-warning").options).forEach(o => {
+                if (s.timerOpts && s.timerOpts[o.value]) o.text = s.timerOpts[o.value];
+            });
             document.getElementById("lbl-cache").innerText = s.cache;
             document.getElementById("lbl-cache-desc").innerText = s.cacheDesc;
             document.getElementById("btn-cache").innerText = s.btnCache;
@@ -992,6 +1021,47 @@ Contact: jbilderbeek@hotmail.com
             return -1;
         }
 
+        // "2026-11-08 22:00:04" -> epoch ms (page dates are local time, like in the Android app)
+        function parseEndMs(str) {
+            let m = str.match(/(\d{4})[-/](\d{2})[-/](\d{2})(?:\s+(\d{2}):(\d{2})(?::(\d{2}))?)?/);
+            if (!m) return 0;
+            return new Date(+m[1], +m[2] - 1, +m[3], +(m[4] || 0), +(m[5] || 0), +(m[6] || 0)).getTime();
+        }
+
+        // Remaining time: "Dd HHh MMm" (days omitted when 0)
+        function formatTimer(endMs) {
+            const diffMs = endMs - Date.now();
+            if (diffMs <= 0) {
+                return (STRINGS[config.lang] || STRINGS.en).timerEnded;
+            }
+            const days = Math.floor(diffMs / (24 * 3600 * 1000));
+            const hours = Math.floor((diffMs % (24 * 3600 * 1000)) / (3600 * 1000));
+            const minutes = Math.floor((diffMs % (3600 * 1000)) / (60 * 1000));
+            const hh = String(hours).padStart(2, "0") + "h";
+            const mm = String(minutes).padStart(2, "0") + "m";
+            return days > 0 ? `${days}d ${hh} ${mm}` : `${hh} ${mm}`;
+        }
+
+        function updateTimers() {
+            const warnMinutes = parseInt(config.timerWarning) || 0;
+            config.sections.forEach(sec => {
+                const el = document.getElementById(`timer-${sec.id}`);
+                if (!el) return;
+                const data = sectionData[sec.id];
+                if (!data || !data.endMs) {
+                    el.textContent = "";
+                    el.classList.remove("warning", "ended");
+                    return;
+                }
+                const diffMs = data.endMs - Date.now();
+                const text = formatTimer(data.endMs);
+                const isWarning = warnMinutes > 0 && diffMs > 0 && Math.floor(diffMs / 60000) <= warnMinutes;
+                el.textContent = isWarning ? `⚠️ ${text}` : text;
+                el.classList.toggle("warning", isWarning);
+                el.classList.toggle("ended", diffMs <= 0);
+            });
+        }
+
         function decodeEntities(s) {
             return s.replace(/&amp;/gi, "&").replace(/&lt;/gi, "<").replace(/&gt;/gi, ">")
                     .replace(/&quot;/gi, '"').replace(/&#0?39;/g, "'").replace(/&nbsp;/gi, " ");
@@ -1017,6 +1087,7 @@ Contact: jbilderbeek@hotmail.com
             let isHome = (secId === 0);
             let game = "";
             let timerText = "";
+            let endMs = 0;
             let pinLine = "";
             let rows = [];
 
@@ -1047,6 +1118,7 @@ Contact: jbilderbeek@hotmail.com
                     let parts = pm[1].replace(/<[^>]+>/g, "").match(/\d{4}[-/]\d{2}[-/]\d{2}(?:\s+\d{2}:\d{2})?/g);
                     if (parts && parts.length >= 2) {
                         timerText = formatPeriodDate(parts[0]) + " --- " + formatPeriodDate(parts[1]);
+                        endMs = parseEndMs(parts[1]);
                     }
                 }
             }
@@ -1138,7 +1210,7 @@ Contact: jbilderbeek@hotmail.com
                 }
             }
 
-            sectionData[secId] = { game, timerText, pinLine, rows };
+            sectionData[secId] = { game, timerText, endMs, pinLine, rows };
         }
 
         function renderSections() {
@@ -1159,6 +1231,7 @@ Contact: jbilderbeek@hotmail.com
                     <div class="section-header" onclick="toggleCard(${sec.id})">
                         <span class="section-title">${sec.title}</span>
                         ${chatBtn}
+                        ${isHome ? '' : `<span class="section-timer" id="timer-${sec.id}"></span>`}
                         <span class="section-arrow" id="arrow-${sec.id}">▼</span>
                     </div>
                     <div class="section-content" id="content-${sec.id}">
@@ -1184,6 +1257,7 @@ Contact: jbilderbeek@hotmail.com
                 `;
                 container.appendChild(card);
             });
+            updateTimers();
         }
 
         function toggleCard(id) {
@@ -1307,6 +1381,10 @@ Contact: jbilderbeek@hotmail.com
                     }).catch(() => {});
             }
         }
+
+        // Update the countdown timers every 30 seconds
+        setInterval(updateTimers, 30000);
+        document.addEventListener("visibilitychange", () => { if (!document.hidden) updateTimers(); });
 
         // Auto refresh: when the app comes back to the foreground and every 5 minutes
         document.addEventListener("visibilitychange", () => {
