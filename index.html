@@ -395,6 +395,31 @@
             cursor: pointer;
         }
 
+        .chat-date-sep {
+            align-self: stretch;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 10px 0 2px 0;
+            color: #B0BEC5;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .chat-date-sep::before,
+        .chat-date-sep::after {
+            content: "";
+            flex: 1;
+            height: 1px;
+            background: rgba(255, 255, 255, 0.14);
+        }
+
+        .chat-date-sep span {
+            background: rgba(255, 255, 255, 0.08);
+            padding: 3px 12px;
+            border-radius: 12px;
+        }
+
         .chat-bubble.pinned {
             align-self: center;
             max-width: 100%;
@@ -416,6 +441,7 @@
             font-size: 10px;
             color: #90A4AE;
             margin-left: 8px;
+            white-space: nowrap;
         }
 
         .chat-text {
@@ -834,16 +860,12 @@
 PINEMHI App and Widget for Android, webapp for iOS
 By Jochen Bilderbeek, The Netherlands
 
-V1.6 (November 2026)
-- Notification in app for new versions
-- In the version history you can see the amount of active profiles
-- When you created a profile your username is clickable in the score lists for a quick view at your profile.
-            
 V1.5 (November 2026)
 - WebApp for iOS live!
 - Added chat to each tab separately
 - Added option to create a profile with some personal information
 - Added options to edit or delete chats (Android: hold message for options, webapp: tap the pencil or cross icon)
+
 
 V1.4 (November 2026)
 - Added more notification options to remind you to compete (Android only)
@@ -962,6 +984,18 @@ POSSIBLE FEATURES:
         };
 
         let activeSectionChat = 0;
+
+        // "Today" / "Yesterday" / "5 November" (with the year when it is not this year)
+        function chatDayLabel(d) {
+            const nl = config.lang === 'nl';
+            const startOf = x => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+            const diffDays = Math.round((startOf(new Date()) - startOf(d)) / 86400000);
+            if (diffDays === 0) return nl ? "Vandaag" : "Today";
+            if (diffDays === 1) return nl ? "Gisteren" : "Yesterday";
+            const opts = { day: "numeric", month: "long" };
+            if (d.getFullYear() !== new Date().getFullYear()) opts.year = "numeric";
+            return d.toLocaleDateString(nl ? "nl-NL" : "en-US", opts);
+        }
         let chatMessageCache = {};
         const collapsedSections = new Set();
 
@@ -1638,7 +1672,7 @@ POSSIBLE FEATURES:
                                         <td class="col-pos">${isHome ? '' : r.pos}</td>
                                         <td class="col-score">${r.score}</td>
                                         ${isHome ? `<td class="col-game">${r.game}</td>` : ''}
-                                        <td class="col-name${profileIndex.has(profileKey(r.name)) ? ' profile-tap' : ''}"${profileIndex.has(profileKey(r.name)) ? ` data-profile-user="${escapeHtml(r.name)}"` : ''}>${r.name}</td>
+                                        <td class="col-name${hasProfileInIndex(r.name) ? ' profile-tap' : ''}"${hasProfileInIndex(r.name) ? ` data-profile-user="${escapeHtml(r.name)}"` : ''}>${r.name}</td>
                                         <td class="col-date">${r.date}</td>
                                     </tr>
                                 `;
@@ -1685,8 +1719,17 @@ POSSIBLE FEATURES:
 
                 if (data) {
                     let keys = Object.keys(data).sort();
+                    let lastDay = "";
                     keys.forEach(k => {
                         let m = data[k];
+                        let dayKey = new Date(m.timestamp).toDateString();
+                        if (dayKey !== lastDay) {
+                            lastDay = dayKey;
+                            let sep = document.createElement("div");
+                            sep.className = "chat-date-sep";
+                            sep.innerHTML = `<span>${escapeHtml(chatDayLabel(new Date(m.timestamp)))}</span>`;
+                            list.appendChild(sep);
+                        }
                         let isMe = config.username && m.sender.toLowerCase() === config.username.toLowerCase();
                         let bubble = document.createElement("div");
                         bubble.className = "chat-bubble " + (isMe ? "me" : "");
@@ -1707,7 +1750,8 @@ POSSIBLE FEATURES:
                             </div>
                         ` : '';
 
-                        let timeStr = new Date(m.timestamp).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+                        let msgDate = new Date(m.timestamp);
+                        let timeStr = msgDate.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
                         if (m.edited) timeStr += config.lang === 'nl' ? ' (bewerkt)' : ' (edited)';
 
                         bubble.innerHTML = `
@@ -1728,11 +1772,11 @@ POSSIBLE FEATURES:
 
         // ======================= USER PROFILE =======================
         // ---- Profile index: which usernames have a profile (keys only, no photos) ----
-        let profileIndex = new Set();
+        let profileIndexMap = new Map();   // lowercase key -> real key (with capitals)
         let profileCount = null;
 
         function indexUrl(username) {
-            return `${BASE_DB_URL}/profileIndex/${encodeURIComponent(profileKey(username))}.json`;
+            return `${BASE_DB_URL}/profileIndex/${encodeURIComponent(resolveProfileKey(username))}.json`;
         }
 
         async function loadProfileIndex() {
@@ -1741,20 +1785,20 @@ POSSIBLE FEATURES:
                 if (!resp.ok) return;
                 const obj = await resp.json();
                 const keys = obj ? Object.keys(obj) : [];
-                profileIndex = new Set(keys);
+                profileIndexMap = new Map(keys.map(k => [k.toLowerCase(), k]));
                 profileCount = keys.length;
             } catch (e) {}
         }
 
         async function setIndexEntry(username, present) {
-            const key = profileKey(username);
+            const key = resolveProfileKey(username);
             try {
                 const resp = await fetch(indexUrl(username), present
                     ? { method: "PUT", headers: { "Content-Type": "application/json" }, body: "true" }
                     : { method: "DELETE" });
                 if (resp.ok) {
-                    if (present) profileIndex.add(key); else profileIndex.delete(key);
-                    profileCount = profileIndex.size;
+                    if (present) profileIndexMap.set(key.toLowerCase(), key); else profileIndexMap.delete(key.toLowerCase());
+                    profileCount = profileIndexMap.size;
                 }
             } catch (e) {}
         }
@@ -1770,9 +1814,8 @@ POSSIBLE FEATURES:
         async function ensureProfile(name) {
             name = (name || "").trim();
             if (!name) return;
-            const key = profileKey(name);
             const local = getLocalProfile();
-            const renamed = !!local.username && profileKey(local.username) !== key;
+            const renamed = !!local.username && !sameProfileName(local.username, name);
             const localIsEmpty = !local.realName && !local.country && !local.favorite && !local.photo;
             try {
                 const resp = await fetch(profileUrl(name), { cache: "no-store" });
@@ -1780,7 +1823,7 @@ POSSIBLE FEATURES:
                 const existing = await resp.json();
 
                 if (existing) {
-                    if (!profileIndex.has(key)) await setIndexEntry(name, true);
+                    if (!hasProfileInIndex(name)) await setIndexEntry(name, true);
                     // Typo fixed / switched to an already existing profile: clean up the empty one we made
                     if (renamed && localIsEmpty) {
                         try { await fetch(profileUrl(local.username), { method: "DELETE" }); } catch (e) {}
@@ -1908,12 +1951,26 @@ POSSIBLE FEATURES:
 
         function pfStr() { return PROFILE_STR[config.lang] || PROFILE_STR.en; }
 
+        // Profile keys keep their capitals (JB1980), exactly like the Android app.
         function profileKey(username) {
-            return String(username).trim().toLowerCase().replace(/[.$#\[\]\/]/g, "_");
+            return String(username).trim().replace(/[.$#\[\]\/]/g, "_");
+        }
+
+        function sameProfileName(a, b) {
+            return profileKey(a).toLowerCase() === profileKey(b).toLowerCase();
+        }
+
+        // If a profile exists under another capitalization (jb1980 / JB1980), use that one.
+        function resolveProfileKey(username) {
+            return profileIndexMap.get(profileKey(username).toLowerCase()) || profileKey(username);
+        }
+
+        function hasProfileInIndex(username) {
+            return profileIndexMap.has(profileKey(username).toLowerCase());
         }
 
         function profileUrl(username) {
-            return `${BASE_DB_URL}/profiles/${encodeURIComponent(profileKey(username))}.json`;
+            return `${BASE_DB_URL}/profiles/${encodeURIComponent(resolveProfileKey(username))}.json`;
         }
 
         function flagEmoji(code) {
@@ -1989,7 +2046,7 @@ POSSIBLE FEATURES:
 
             let local = {};
             try { local = JSON.parse(localStorage.getItem("profile") || "{}"); } catch (e) {}
-            fillProfileForm(local.username && profileKey(local.username) === profileKey(pfUser) ? local : {});
+            fillProfileForm(local.username && sameProfileName(local.username, pfUser) ? local : {});
             openModal("profile-modal");
 
             // Sync with the database (source of truth), unless the user already started typing
@@ -2064,6 +2121,8 @@ POSSIBLE FEATURES:
                 profile = await resp.json();
             } catch (e) { failed = true; }
 
+            if (profile && !hasProfileInIndex(username)) setIndexEntry(username, true);
+
             const photo = profile && /^data:image\//.test(profile.photo || "") ? profile.photo : "";
             let rows = "";
             if (profile && profile.country) {
@@ -2078,7 +2137,7 @@ POSSIBLE FEATURES:
             body.innerHTML = `
                 <div class="pf-card">
                     <div class="pf-avatar" id="pf-card-avatar"></div>
-                    <div class="pf-card-user">${escapeHtml(username)}</div>
+                    <div class="pf-card-user">${escapeHtml((profile && profile.username) || username)}</div>
                     ${profile && profile.realName ? `<div class="pf-card-real">${escapeHtml(profile.realName)}</div>` : ""}
                     ${message ? `<div class="pf-empty">${message}</div>` : ""}
                     ${rows ? `<div class="pf-card-rows">${rows}</div>` : ""}
