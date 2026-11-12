@@ -21,17 +21,25 @@ jobs:
       - name: Download pages
         run: |
           mkdir -p data
-          for p in home week_challenge week_challenge_5min week_challenge_golf; do
+          for p in home week_challenge week_challenge_5min week_challenge_golf hiscore_search; do
             if curl -fsSL --retry 3 --max-time 30 \
                  -A "Mozilla/5.0 (compatible; PINemHi-App)" \
+                 -D "data/$p.hdr" \
                  "https://www.pinemhi.com/$p.php" -o "data/$p.raw"; then
-              iconv -c -f WINDOWS-1252 -t UTF-8 "data/$p.raw" > "data/$p.html"
+              # Only convert when the page is NOT already UTF-8
+              if grep -i '^content-type:' "data/$p.hdr" | tail -1 | grep -qi 'utf-8'; then
+                cp "data/$p.raw" "data/$p.html"
+              else
+                iconv -c -f WINDOWS-1252 -t UTF-8 "data/$p.raw" > "data/$p.html"
+              fi
               echo "OK   $p ($(wc -c < data/$p.html) bytes)"
             else
               echo "FAIL $p (oude versie blijft staan)"
             fi
-            rm -f "data/$p.raw"
+            rm -f "data/$p.raw" "data/$p.hdr"
           done
+          # Time of this run: the app shows this as "data from ..."
+          echo "{\"fetchedAt\": $(date +%s)000}" > data/status.json
 
       - name: Commit changes
         run: |
