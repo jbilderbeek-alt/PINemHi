@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="app-version" content="1.6.3">
+    <meta name="app-version" content="1.6.2">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>PINemHi</title>
 
@@ -1428,6 +1428,21 @@ POSSIBLE FEATURES:
 
         let directBlocked = false;        // pinemhi.com does not allow direct reading (no CORS header yet)
         let sourcesUsed = new Set();      // where the data of the last refresh came from: live / file / proxy
+        const FILE_FRESH_MS = 15 * 60 * 1000;   // a GitHub copy younger than this is used as is
+        let fileStatusPromise = null;
+
+        // When did the GitHub Action fetch the copy? (ms, 0 = unknown). One request per refresh.
+        function getFileFetchedAt() {
+            if (!fileStatusPromise) {
+                fileStatusPromise = (async () => {
+                    try {
+                        const st = await (await fetchWithTimeout(`data/status.json?t=${Date.now()}`, 5000)).json();
+                        return (st && st.fetchedAt) || 0;
+                    } catch (e) { return 0; }
+                })();
+            }
+            return fileStatusPromise;
+        }
 
         // Read a response with the right character set (pinemhi.com pages can be UTF-8 or windows-1252)
         async function readText(resp) {
@@ -1464,22 +1479,32 @@ POSSIBLE FEATURES:
             }
 
             // 3. Own copy on GitHub (data/*.html, refreshed by the GitHub Action, can be some minutes old)
+            let fileHtml = null;
             try {
                 const resp = await fetchWithTimeout(localDataUrl(targetUrl), 8000);
                 if (resp.ok) {
                     const html = await resp.text();
-                    if (looksValid(html)) { sourcesUsed.add("file"); return html; }
+                    if (looksValid(html)) fileHtml = html;
                 }
             } catch (e) {}
 
-            // 4. Fallback proxies
+            // Is that copy recent? (data/status.json holds the time the Action fetched it)
+            if (fileHtml) {
+                const fetchedAt = await getFileFetchedAt();
+                if (fetchedAt && Date.now() - fetchedAt < FILE_FRESH_MS) {
+                    sourcesUsed.add("file");
+                    return fileHtml;
+                }
+            }
+
+            // 4. The copy is old (or missing): try the free public proxies for fresher data
             const proxies = [
-                url => `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`,
+                url => `https://api.allorigins.win/get?disableCache=true&url=${encodeURIComponent(url)}`,
                 url => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`
             ];
             for (let proxyFn of proxies) {
                 try {
-                    const resp = await fetchWithTimeout(proxyFn(targetUrl), 8000);
+                    const resp = await fetchWithTimeout(proxyFn(targetUrl), fileHtml ? 6000 : 8000);
                     if (resp.ok) {
                         let html = await resp.text();
                         try {
@@ -1490,6 +1515,9 @@ POSSIBLE FEATURES:
                     }
                 } catch (e) {}
             }
+
+            // 5. Nothing fresher found: use the (old) copy
+            if (fileHtml) { sourcesUsed.add("file"); return fileHtml; }
             return null;
         }
 
@@ -1501,6 +1529,7 @@ POSSIBLE FEATURES:
             isRefreshing = true;
             lastRefresh = Date.now();
             sourcesUsed = new Set();
+            fileStatusPromise = null;
             const label = document.getElementById("updated-time");
             label.innerText = config.lang === 'nl' ? "Verversen..." : "Refreshing...";
 
@@ -1523,10 +1552,8 @@ POSSIBLE FEATURES:
                 // (otherwise the clock would show the time you looked, not the age of the scores).
                 let dataTime = new Date();
                 if (sourcesUsed.has("file")) {
-                    try {
-                        const st = await (await fetchWithTimeout(`data/status.json?t=${Date.now()}`, 5000)).json();
-                        if (st && st.fetchedAt) dataTime = new Date(st.fetchedAt);
-                    } catch (e) {}
+                    const fetchedAt = await getFileFetchedAt();
+                    if (fetchedAt) dataTime = new Date(fetchedAt);
                 }
                 const time = dataTime.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
                 const stale = Date.now() - dataTime.getTime() > 30 * 60 * 1000;
