@@ -1,6 +1,15 @@
 PINEMHI App and Widget for Android, webapp for IOS
 By Jochen Bilderbeek, The Netherlands
 
+V1.6 (November 2026)
+- Message when a new version of the webapp is available and updating right from within the app!
+- A profile is now created automatically when you enter your username
+- Only players with a profile are underlined and can be tapped in the lists
+- Choose your country from a list with flags, the most used countries come first
+- Chat: the date is shown between the messages (like Telegram)
+- Number of players with a profile is shown at the bottom of this screen
+- Small improvements and bug fixes
+
 V1.5 (November 2026)
 - WebApp for IOS live!
 - Added chat to each tab seperately
@@ -42,7 +51,7 @@ I only didn't like checking the website on my phone so I created the app and wid
 During development I came up with some nice additions to the website like a timer in the different competitions and high-lighting of your own username. 
 
 Please let me know if you find any bugs or have ideas for improving this app.
-Contact me at: jbilderbeek@hotmail.com
+Contact me at: jbilderbeek@hotmail.com or use the in-app chat!
 
 POSSIBLE FEATURES:
 - Personal best scores
