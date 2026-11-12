@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="app-version" content="1.6.1">
+    <meta name="app-version" content="1.6.3">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>PINemHi</title>
 
@@ -669,6 +669,37 @@
             font-size: 15px;
         }
 
+        .pf-top5 {
+            margin-top: 22px;
+            text-align: left;
+        }
+
+        .pf-top5-title {
+            color: #FFD54F;
+            font-weight: bold;
+            font-size: 14px;
+            margin-bottom: 8px;
+        }
+
+        .pf-top5 .input-control {
+            margin-bottom: 8px;
+        }
+
+        .t5-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: #1E293B;
+            border-radius: 8px;
+            padding: 8px 14px;
+            margin-bottom: 6px;
+        }
+
+        .t5-pos { color: #90A4AE; width: 18px; }
+        .t5-score { color: #FFD54F; font-weight: bold; flex: 1; font-size: 16px; }
+        .t5-date { color: #90A4AE; font-size: 12px; }
+        .t5-msg { color: #90A4AE; font-size: 13px; margin-top: 6px; }
+
         .pf-empty {
             color: #90A4AE;
             font-size: 14px;
@@ -826,7 +857,7 @@
             <button class="btn-primary" onclick="saveSettings()" id="btn-save">Save</button>
 
             <div class="footer-link" onclick="openModal('info-modal')">
-                <u id="app-version-label">V1.5</u><br><span id="lbl-credit">Created by Jochen Bilderbeek<br>Data from Pinemhi.com</span>
+                <u id="app-version-label">V1.6.2</u><br><span id="lbl-credit">Created by Jochen Bilderbeek<br>Data from Pinemhi.com</span>
             </div>
         </div>
     </div>
@@ -861,15 +892,21 @@ PINEMHI App and Widget for Android, webapp for iOS
 By Jochen Bilderbeek, The Netherlands
 
 V1.6 (November 2026)
-- Notification in app for new versions and easy updates
-- In the version history you can see the amount of active profiles
-- When you created a profile your username is clickable in the score lists for a quick view at your profile.
+- Message when a new version of the webapp is available and updating right from within the app!
+- A profile is now created automatically when you enter your username
+- Only players with a profile are underlined and can be tapped in the lists
+- Choose your country from a list with flags, the most used countries come first
+- Chat: the date is shown between the messages (like Telegram)
+- Number of players with a profile is shown at the bottom of this screen
+- Small improvements and bug fixes
+
 
 V1.5 (November 2026)
 - WebApp for iOS live!
 - Added chat to each tab separately
 - Added option to create a profile with some personal information
 - Added options to edit or delete chats (Android: hold message for options, webapp: tap the pencil or cross icon)
+
 
 V1.4 (November 2026)
 - Added more notification options to remind you to compete (Android only)
@@ -1086,6 +1123,7 @@ POSSIBLE FEATURES:
                 timerDesc: "Show a warning (⚠️) when a competition is ending soon.",
                 timer0: "Off",
                 timerEnded: "Ended",
+                latestScores: "Latest scores submitted",
                 timerOpts: { "0": "Off", "15": "15 minutes before end", "30": "30 minutes before end", "60": "1 hour before end", "120": "2 hours before end", "360": "6 hours before end", "720": "12 hours before end", "1440": "24 hours before end" },
                 cache: "Memory & Cache",
                 cacheDesc: "Clear saved data if loading problems occur.",
@@ -1113,6 +1151,7 @@ POSSIBLE FEATURES:
                 timerDesc: "Laat een waarschuwing (⚠️) zien als een challenge bijna afloopt.",
                 timer0: "Uit",
                 timerEnded: "Afgelopen",
+                latestScores: "Laatst ingestuurde scores",
                 timerOpts: { "0": "Uit", "15": "15 minuten voor afloop", "30": "30 minuten voor afloop", "60": "1 uur voor afloop", "120": "2 uur voor afloop", "360": "6 uur voor afloop", "720": "12 uur voor afloop", "1440": "24 uur voor afloop" },
                 cache: "Geheugen & Cache",
                 cacheDesc: "Wis opgeslagen data als er problemen zijn met laden.",
@@ -1553,13 +1592,12 @@ POSSIBLE FEATURES:
             }
 
             // Extract table rows via Regex
-            // Weekly/5min/PIN pages: only read the FIRST table (interim standings).
-            // The second table is the history of previous winners.
+            // Only read the FIRST table on every page:
+            // weekly/5min/PIN = interim standings (second table = previous winners),
+            // HOME = latest scores submitted (second table = latest 5-minute mode scores).
             let source = html;
-            if (!isHome) {
-                let firstTable = html.match(/<table[\s\S]*?<\/table>/i);
-                if (firstTable) source = firstTable[0];
-            }
+            let firstTable = html.match(/<table[\s\S]*?<\/table>/i);
+            if (firstTable) source = firstTable[0];   // HOME: "Latest scores submitted" only
             let trMatches = source.match(/<tr[^>]*>[\s\S]*?<\/tr>/gi) || [];
             if (trMatches.length === 0) return; // not a real data page: keep old data
             let headerCols = [];
@@ -1665,7 +1703,7 @@ POSSIBLE FEATURES:
                     </div>
                     <div class="section-content${collapsedSections.has(sec.id) ? ' collapsed' : ''}" id="content-${sec.id}">
                         ${(!isHome && data.game) ? `<div class="game-title">${escapeHtml(data.game)}</div>` : ''}
-                        ${data.timerText ? `<div class="text-line">${data.timerText}</div>` : ''}
+                        ${isHome ? `<div class="text-line">${(STRINGS[config.lang] || STRINGS.en).latestScores}</div>` : (data.timerText ? `<div class="text-line">${data.timerText}</div>` : '')}
                         ${data.pinLine ? `<div class="text-line">${data.pinLine}</div>` : ''}
                         <table class="table">
                             ${data.rows.length === 0 ? '<tr><td colspan="5" style="text-align:center; color:#90A4AE;">No scores posted yet</td></tr>' : ''}
@@ -1775,6 +1813,100 @@ POSSIBLE FEATURES:
         }
 
         // ======================= USER PROFILE =======================
+        // ---- Top 5 scores of a player on one machine (PINemHi hi-score search) ----
+        // Put the address of your Cloudflare Worker here (see instructions). While it is empty the Top 5 block is hidden.
+        const HISCORE_PROXY = "";
+
+        let hiscoreForm = null;
+        let top5Token = 0;
+
+        // The list of machines and players comes from data/hiscore_search.html (updated by the GitHub Action),
+        // because the exact spelling of the names is needed to search.
+        async function loadHiscoreForm() {
+            if (hiscoreForm) return hiscoreForm;
+            const resp = await fetchWithTimeout(`data/hiscore_search.html?t=${Math.floor(Date.now() / 3600000)}`, 10000);
+            if (!resp.ok) throw new Error("form");
+            const doc = new DOMParser().parseFromString(await resp.text(), "text/html");
+            const games = Array.from(doc.querySelectorAll('select[name="game"] option'))
+                .map(o => ({ value: o.getAttribute("value"), label: o.textContent.trim() }))
+                .filter(g => g.value);
+            const users = new Map();
+            doc.querySelectorAll('select[name="user"] option').forEach(o => {
+                const v = o.getAttribute("value");
+                if (v && v !== "all") users.set(v.trim().toLowerCase(), v);
+            });
+            if (!games.length) throw new Error("empty");
+            hiscoreForm = { games, users };
+            return hiscoreForm;
+        }
+
+        function top5DateText(d) {
+            const m = String(d).match(/(\d{4})-(\d{2})-(\d{2})/);
+            return m ? `${m[3]}-${m[2]}-${m[1].slice(-2)}` : String(d);
+        }
+
+        async function setupTop5(username, favorite) {
+            const box = document.getElementById("pf-top5");
+            if (!box) return;
+            const s = pfStr();
+            const filter = document.getElementById("t5-filter");
+            const select = document.getElementById("t5-select");
+            const out = document.getElementById("t5-result");
+
+            let form;
+            try { form = await loadHiscoreForm(); } catch (e) { box.style.display = "none"; return; }
+
+            const userValue = form.users.get(String(username).trim().toLowerCase());
+            if (!userValue) {
+                filter.style.display = "none";
+                select.style.display = "none";
+                out.innerHTML = `<div class="t5-msg">${s.top5NoPlayer}</div>`;
+                return;
+            }
+
+            const fillOptions = text => {
+                const q = text.trim().toLowerCase();
+                const keep = select.value;
+                select.innerHTML = `<option value="">${s.top5Pick}</option>` +
+                    form.games.map((g, i) => ({ g, i }))
+                        .filter(x => !q || x.g.label.toLowerCase().includes(q))
+                        .map(x => `<option value="${x.i}">${escapeHtml(x.g.label)}</option>`).join("");
+                if (keep) select.value = keep;
+            };
+
+            const load = async idx => {
+                const token = ++top5Token;
+                if (idx === "" || !form.games[idx]) { out.innerHTML = ""; return; }
+                out.innerHTML = `<div class="t5-msg">${s.top5Loading}</div>`;
+                try {
+                    const params = new URLSearchParams({ game: form.games[idx].value, user: userValue, top: "10", multi: "yes" });
+                    const resp = await fetchWithTimeout(HISCORE_PROXY + (HISCORE_PROXY.includes("?") ? "&" : "?") + params, 12000);
+                    if (!resp.ok) throw new Error("HTTP " + resp.status);
+                    const doc = new DOMParser().parseFromString(await resp.text(), "text/html");
+                    const rows = Array.from(doc.querySelectorAll("table tr"))
+                        .map(tr => Array.from(tr.querySelectorAll("td")).map(td => td.textContent.trim()))
+                        .filter(c => c.length >= 5)
+                        .slice(0, 5);
+                    if (token !== top5Token) return;   // the user picked another machine meanwhile
+                    out.innerHTML = rows.length
+                        ? rows.map((c, i) => `<div class="t5-row"><span class="t5-pos">${i + 1}</span><span class="t5-score">${escapeHtml(c[1])}</span><span class="t5-date">${escapeHtml(top5DateText(c[4]))}</span></div>`).join("")
+                        : `<div class="t5-msg">${s.top5None}</div>`;
+                } catch (e) {
+                    if (token === top5Token) out.innerHTML = `<div class="t5-msg">${s.top5Fail}</div>`;
+                }
+            };
+
+            filter.placeholder = s.top5Search;
+            fillOptions("");
+            filter.addEventListener("input", () => fillOptions(filter.value));
+            select.addEventListener("change", () => load(select.value));
+
+            // Preselect the favorite machine of the player when it exists in the list
+            const fav = String(favorite || "").trim().toLowerCase();
+            const favIdx = fav ? form.games.findIndex(g => g.label.toLowerCase() === fav) : -1;
+            if (favIdx >= 0) { select.value = String(favIdx); load(String(favIdx)); }
+        }
+
         // ---- Profile index: which usernames have a profile (keys only, no photos) ----
         let profileIndexMap = new Map();   // lowercase key -> real key (with capitals)
         let profileCount = null;
@@ -1900,6 +2032,11 @@ POSSIBLE FEATURES:
             "SA SB SC SD SE SG SH SI SJ SK SL SM SN SO SR SS ST SV SX SY SZ TC TD TG TH TJ TK TL TM TN TO TR TT TV TW TZ " +
             "UA UG US UY UZ VA VC VE VG VI VN VU WF WS XK YE YT ZA ZM ZW").split(" ");
 
+        // Shown at the top of the country list, in this order (most players first)
+        const TOP_COUNTRY_CODES = ["NL", "AR", "US", "FR", "DE", "CA", "ES", "CZ", "RE", "AT",
+            "BR", "GB", "IT", "BE", "HU", "SE", "CO", "MY", "PT", "RU",
+            "AU", "PL", "IN", "BG", "RS", "CL", "NO", "DK", "ID"];
+
         const PROFILE_STR = {
             en: {
                 link: "👤 Edit Profile",
@@ -1920,6 +2057,13 @@ POSSIBLE FEATURES:
                 loading: "Loading...",
                 noProfile: "This player has not created a profile yet.",
                 noExtra: "This player has not added more info yet.",
+                top5Title: "Top 5 scores",
+                top5Search: "Search machine...",
+                top5Pick: "— choose a machine —",
+                top5Loading: "Loading...",
+                top5None: "No scores found for this player on this machine.",
+                top5Fail: "Could not load the scores. Try again later.",
+                top5NoPlayer: "This name has no scores on PINemHi yet.",
                 profilesLine: "👤 Players with a profile: ",
                 updateMsg: "🔄 New version {v} available — tap to update",
                 loadFail: "Could not load the profile.",
@@ -1945,6 +2089,13 @@ POSSIBLE FEATURES:
                 loading: "Laden...",
                 noProfile: "Deze speler heeft nog geen profiel gemaakt.",
                 noExtra: "Deze speler heeft nog geen extra info toegevoegd.",
+                top5Title: "Top 5 scores",
+                top5Search: "Zoek flipperkast...",
+                top5Pick: "— kies een flipperkast —",
+                top5Loading: "Laden...",
+                top5None: "Geen scores gevonden voor deze speler op deze kast.",
+                top5Fail: "De scores konden niet worden geladen. Probeer het later opnieuw.",
+                top5NoPlayer: "Deze naam heeft nog geen scores op PINemHi.",
                 profilesLine: "👤 Spelers met een profiel: ",
                 updateMsg: "🔄 Nieuwe versie {v} beschikbaar — tik om bij te werken",
                 loadFail: "Het profiel kon niet worden geladen.",
@@ -1990,12 +2141,19 @@ POSSIBLE FEATURES:
         function fillCountrySelect(selected) {
             const sel = document.getElementById("pf-country");
             const current = selected !== undefined ? selected : sel.value;
-            const items = COUNTRY_CODES
-                .map(c => ({ code: c, name: countryName(c) }))
-                .filter(x => x.name && x.name !== x.code)
+            const toItem = c => ({ code: c, name: countryName(c) });
+            const valid = x => x.name && x.name !== x.code;
+            const topSet = new Set(TOP_COUNTRY_CODES);
+
+            const top = TOP_COUNTRY_CODES.map(toItem).filter(valid);
+            const rest = COUNTRY_CODES.filter(c => !topSet.has(c)).map(toItem).filter(valid)
                 .sort((a, b) => a.name.localeCompare(b.name, config.lang));
+            const opt = x => `<option value="${x.code}">${flagEmoji(x.code)}  ${escapeHtml(x.name)}</option>`;
+
             sel.innerHTML = `<option value="">${pfStr().countryNone}</option>` +
-                items.map(x => `<option value="${x.code}">${flagEmoji(x.code)}  ${escapeHtml(x.name)}</option>`).join("");
+                top.map(opt).join("") +
+                `<option value="" disabled>──────────</option>` +
+                rest.map(opt).join("");
             sel.value = current || "";
         }
 
@@ -2145,8 +2303,16 @@ POSSIBLE FEATURES:
                     ${profile && profile.realName ? `<div class="pf-card-real">${escapeHtml(profile.realName)}</div>` : ""}
                     ${message ? `<div class="pf-empty">${message}</div>` : ""}
                     ${rows ? `<div class="pf-card-rows">${rows}</div>` : ""}
+                    ${HISCORE_PROXY ? `
+                    <div class="pf-top5" id="pf-top5">
+                        <div class="pf-top5-title">${s.top5Title}</div>
+                        <input type="search" class="input-control" id="t5-filter" autocomplete="off">
+                        <select class="input-control" id="t5-select"></select>
+                        <div id="t5-result"></div>
+                    </div>` : ""}
                 </div>`;
             setAvatar(document.getElementById("pf-card-avatar"), photo);
+            if (HISCORE_PROXY) setupTop5((profile && profile.username) || username, profile && profile.favorite);
         }
 
         document.addEventListener("click", e => {
