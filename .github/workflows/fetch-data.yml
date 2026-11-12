@@ -2,7 +2,7 @@ name: Fetch PINemHi data
 
 on:
   schedule:
-    - cron: '*/10 * * * *'   # elke ~10 minuten (GitHub kan dit enkele minuten uitstellen)
+    - cron: '4-54/10 * * * *'   # elke 10 minuten, op :04 :14 :24 ... (niet op het drukke hele uur)
   workflow_dispatch:          # handmatig starten via de Actions-tab
 
 permissions:
@@ -46,4 +46,4 @@ jobs:
           git config user.name "github-actions"
           git config user.email "actions@github.com"
           git add data
-          git diff --cached --quiet || (git commit -m "Update data" && git push)
+          git diff --cached --quiet || (git commit -m "Update data" && git pull --rebase origin main && git push)
