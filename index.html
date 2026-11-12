@@ -529,6 +529,31 @@
             font-weight: bold;
         }
 
+        html, body {
+            overscroll-behavior-y: contain;   /* no browser pull-to-refresh, the app has its own */
+        }
+
+        .ptr {
+            position: fixed;
+            left: 50%;
+            top: calc(env(safe-area-inset-top, 0px) + 66px);
+            transform: translate(-50%, -80px);
+            background: #334155;
+            color: #FFFFFF;
+            font-size: 13px;
+            font-weight: bold;
+            padding: 8px 16px;
+            border-radius: 18px;
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
+            z-index: 150;
+            opacity: 0;
+            pointer-events: none;
+            white-space: nowrap;
+        }
+
+        .ptr.show { opacity: 1; }
+        .ptr.snap { transition: transform 0.2s ease, opacity 0.2s ease; }
+
         /* Features that are temporarily hidden (remove the class "feature-hidden" to show them again) */
         .feature-hidden {
             display: none;
@@ -951,6 +976,9 @@ POSSIBLE FEATURES:
 <span id="profile-count-line" style="color: #90A4AE;"></span>        </div>
     </div>
 
+    <!-- Pull-to-refresh indicator -->
+    <div class="ptr" id="ptr"></div>
+
     <!-- New version banner -->
     <div class="update-banner" id="update-banner" onclick="applyUpdate()">
         <span class="msg" id="update-banner-msg"></span>
@@ -1124,6 +1152,9 @@ POSSIBLE FEATURES:
                 timer0: "Off",
                 timerEnded: "Ended",
                 latestScores: "Latest scores submitted",
+                ptrPull: "Pull down to refresh",
+                ptrRelease: "Release to refresh",
+                ptrBusy: "Refreshing...",
                 timerOpts: { "0": "Off", "15": "15 minutes before end", "30": "30 minutes before end", "60": "1 hour before end", "120": "2 hours before end", "360": "6 hours before end", "720": "12 hours before end", "1440": "24 hours before end" },
                 cache: "Memory & Cache",
                 cacheDesc: "Clear saved data if loading problems occur.",
@@ -1152,6 +1183,9 @@ POSSIBLE FEATURES:
                 timer0: "Uit",
                 timerEnded: "Afgelopen",
                 latestScores: "Laatst ingestuurde scores",
+                ptrPull: "Trek omlaag om te verversen",
+                ptrRelease: "Laat los om te verversen",
+                ptrBusy: "Verversen...",
                 timerOpts: { "0": "Uit", "15": "15 minuten voor afloop", "30": "30 minuten voor afloop", "60": "1 uur voor afloop", "120": "2 uur voor afloop", "360": "6 uur voor afloop", "720": "12 uur voor afloop", "1440": "24 uur voor afloop" },
                 cache: "Geheugen & Cache",
                 cacheDesc: "Wis opgeslagen data als er problemen zijn met laden.",
@@ -1392,17 +1426,53 @@ POSSIBLE FEATURES:
             }
         }
 
+        let directBlocked = false;        // pinemhi.com does not allow direct reading (no CORS header yet)
+        let sourcesUsed = new Set();      // where the data of the last refresh came from: live / file / proxy
+
+        // Read a response with the right character set (pinemhi.com pages can be UTF-8 or windows-1252)
+        async function readText(resp) {
+            const buf = await resp.arrayBuffer();
+            const ct = (resp.headers.get("content-type") || "").toLowerCase();
+            const label = /charset=(windows-1252|iso-8859-1|latin1)/.test(ct) ? "windows-1252" : "utf-8";
+            return new TextDecoder(label).decode(buf);
+        }
+
         async function fetchSinglePage(targetUrl) {
-            // 1. Own data (same origin, no CORS problems)
+            const pageName = targetUrl.split("/").pop().split("?")[0];
+            const sep = u => (u.includes("?") ? "&" : "?");
+
+            // 1. Live, straight from pinemhi.com (works as soon as the site sends a CORS header)
+            if (!directBlocked) {
+                try {
+                    const resp = await fetchWithTimeout(`${targetUrl}${sep(targetUrl)}t=${Date.now()}`, 8000);
+                    if (resp.ok) {
+                        const html = await readText(resp);
+                        if (looksValid(html)) { sourcesUsed.add("live"); return html; }
+                    }
+                } catch (e) { directBlocked = true; }
+            }
+
+            // 2. Live, via your own Cloudflare Worker (only when HISCORE_PROXY is filled in)
+            if (HISCORE_PROXY) {
+                try {
+                    const resp = await fetchWithTimeout(`${HISCORE_PROXY}${sep(HISCORE_PROXY)}page=${encodeURIComponent(pageName)}`, 10000);
+                    if (resp.ok) {
+                        const html = await readText(resp);
+                        if (looksValid(html)) { sourcesUsed.add("live"); return html; }
+                    }
+                } catch (e) {}
+            }
+
+            // 3. Own copy on GitHub (data/*.html, refreshed by the GitHub Action, can be some minutes old)
             try {
                 const resp = await fetchWithTimeout(localDataUrl(targetUrl), 8000);
                 if (resp.ok) {
                     const html = await resp.text();
-                    if (looksValid(html)) return html;
+                    if (looksValid(html)) { sourcesUsed.add("file"); return html; }
                 }
             } catch (e) {}
 
-            // 2. Fallback proxies
+            // 4. Fallback proxies
             const proxies = [
                 url => `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`,
                 url => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`
@@ -1416,7 +1486,7 @@ POSSIBLE FEATURES:
                             let json = JSON.parse(html);
                             if (json && json.contents) html = json.contents;
                         } catch (e) {}
-                        if (looksValid(html)) return html;
+                        if (looksValid(html)) { sourcesUsed.add("proxy"); return html; }
                     }
                 } catch (e) {}
             }
@@ -1430,6 +1500,7 @@ POSSIBLE FEATURES:
             if (isRefreshing) return;
             isRefreshing = true;
             lastRefresh = Date.now();
+            sourcesUsed = new Set();
             const label = document.getElementById("updated-time");
             label.innerText = config.lang === 'nl' ? "Verversen..." : "Refreshing...";
 
@@ -1447,10 +1518,21 @@ POSSIBLE FEATURES:
 
                 await indexPromise;
                 const ok = results.filter(Boolean).length;
-                const time = new Date().toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
+
+                // Live data: now. Data from our own copy: the time the GitHub Action fetched it
+                // (otherwise the clock would show the time you looked, not the age of the scores).
+                let dataTime = new Date();
+                if (sourcesUsed.has("file")) {
+                    try {
+                        const st = await (await fetchWithTimeout(`data/status.json?t=${Date.now()}`, 5000)).json();
+                        if (st && st.fetchedAt) dataTime = new Date(st.fetchedAt);
+                    } catch (e) {}
+                }
+                const time = dataTime.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
+                const stale = Date.now() - dataTime.getTime() > 30 * 60 * 1000;
                 if (ok === 0) {
                     label.innerText = config.lang === 'nl' ? "⚠ Laden mislukt" : "⚠ Update failed";
-                } else if (ok < results.length) {
+                } else if (ok < results.length || stale) {
                     label.innerText = time + " ⚠";
                 } else {
                     label.innerText = time;
@@ -1882,7 +1964,7 @@ POSSIBLE FEATURES:
                     const params = new URLSearchParams({ game: form.games[idx].value, user: userValue, top: "10", multi: "yes" });
                     const resp = await fetchWithTimeout(HISCORE_PROXY + (HISCORE_PROXY.includes("?") ? "&" : "?") + params, 12000);
                     if (!resp.ok) throw new Error("HTTP " + resp.status);
-                    const doc = new DOMParser().parseFromString(await resp.text(), "text/html");
+                    const doc = new DOMParser().parseFromString(await readText(resp), "text/html");
                     const rows = Array.from(doc.querySelectorAll("table tr"))
                         .map(tr => Array.from(tr.querySelectorAll("td")).map(td => td.textContent.trim()))
                         .filter(c => c.length >= 5)
@@ -2396,6 +2478,55 @@ POSSIBLE FEATURES:
                     }).catch(() => {});
             }
         }
+
+        // Pull down at the top of the page to refresh
+        (function setupPullToRefresh() {
+            const ind = document.getElementById("ptr");
+            const THRESHOLD = 70;
+            let startY = 0, dist = 0, pulling = false;
+            const txt = key => (STRINGS[config.lang] || STRINGS.en)[key];
+            const modalOpen = () => !!document.querySelector(".modal.active");
+
+            function hide() {
+                ind.classList.add("snap");
+                ind.classList.remove("show");
+                ind.style.transform = "translate(-50%, -80px)";
+            }
+
+            window.addEventListener("touchstart", e => {
+                if (window.scrollY > 0 || modalOpen() || isRefreshing || e.touches.length !== 1) return;
+                startY = e.touches[0].clientY;
+                dist = 0;
+                pulling = true;
+                ind.classList.remove("snap");
+            }, { passive: true });
+
+            window.addEventListener("touchmove", e => {
+                if (!pulling) return;
+                const dy = e.touches[0].clientY - startY;
+                if (dy <= 0 || window.scrollY > 0) { pulling = false; hide(); return; }
+                dist = Math.min(dy, 160);
+                if (e.cancelable) e.preventDefault();
+                ind.textContent = dist >= THRESHOLD ? "↻ " + txt("ptrRelease") : "↓ " + txt("ptrPull");
+                ind.classList.add("show");
+                ind.style.transform = `translate(-50%, ${Math.min(dist * 0.5, 50) - 80 + 30}px)`;
+            }, { passive: false });
+
+            function end() {
+                if (!pulling) return;
+                pulling = false;
+                if (dist >= THRESHOLD) {
+                    ind.classList.add("snap");
+                    ind.textContent = "↻ " + txt("ptrBusy");
+                    ind.style.transform = "translate(-50%, 0)";
+                    Promise.resolve(refreshData()).finally(hide);
+                } else {
+                    hide();
+                }
+            }
+            window.addEventListener("touchend", end, { passive: true });
+            window.addEventListener("touchcancel", end, { passive: true });
+        })();
 
         // Update the countdown timers every 30 seconds
         setInterval(updateTimers, 30000);
