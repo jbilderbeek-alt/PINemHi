@@ -1,6 +1,6 @@
 {
-  "versionCode": 6,
-  "versionName": "1.6",
-  "apkUrl": "https://github.com/jbilderbeek-alt/PINemHi/raw/main/PINemHi_v1.6.apk",
-  "releaseNotes": "V1.6 is out! Features: Individual chats per tab, user profiles, edit/delete chat messages, and auto-updates."
+  "versionCode": 7,
+  "versionName": "1.6.2",
+  "apkUrl": "https://github.com/jbilderbeek-alt/PINemHi/raw/main/PINemHi_v1.6.2.apk",
+  "releaseNotes": "V1.6.2 is out!\n- Auto-update notification inside app\n- Country picker with flags\n- Telegram-style date badges in chat\n- Profile creation and profile counter\n- Bug fixes and UI polish"
 }
